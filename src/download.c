@@ -4,7 +4,7 @@
 int main(void)
 {
     puts("This is a shared library test...");
-    char *connection;
-    connect_sentinel(connection);
+    int fd = connect_sentinel();
+    printf("We have a connection: %d\n", fd);
     return 0;
 }

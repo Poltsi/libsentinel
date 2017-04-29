@@ -86,17 +86,24 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    dprint(verbose, "Opening the serial device: %s", device_name);
+    int fd = connect_sentinel(device_name);
+
+    if (fd < 0) {
+        printf("ERROR: Unable to connect to the device: %s\n", device_name);
+        exit(1);
+    }
+
+    printf("Connected to: %s\n", device_name);
+
     if(list_dives) {
         dprint(verbose, "Printing the list of dives");
         char *buffer = malloc(1024 * 1024 * sizeof(char));
         
-        int fd = connect_sentinel();
         get_sentinel_header(fd, buffer);
         disconnect_sentinel(fd);
     }
 
     puts("This is a shared library test...");
-    int fd = connect_sentinel();
-    printf("We have a connection: %d\n", fd);
     return(0);
 }

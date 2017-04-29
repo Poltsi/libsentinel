@@ -16,8 +16,8 @@ static const char SENTINEL_WAIT_BYTE[] = {0x50}; // P the rebreather prints this
 
 /* Macros */
 #define dprint(verbose, ...) ( verbose ? printf(__VA_ARGS__) : 0) 
-extern int connect_sentinel(void);
-extern int open_sentinel_device(void);
+extern int connect_sentinel(char *devicex);
+extern int open_sentinel_device(char *device);
 extern bool send_sentinel_command(int fd, const char *command);
 extern bool read_sentinel_data(int fd, char *buffer);
 extern bool disconnect_sentinel(int fd);

@@ -1,8 +1,8 @@
 #include "libsentinel.h"
 
-int connect_sentinel(void) {
+int connect_sentinel(char *device) {
     puts("Hello, I'm a shared library");
-    int fd = open_sentinel_device();
+    int fd = open_sentinel_device(device);
     /** TODO: Make sure the device is open */
     struct termios options;
     tcgetattr(fd, &options);
@@ -41,21 +41,15 @@ int connect_sentinel(void) {
     return(fd);
 }
 
-int open_sentinel_device(void) {
+int open_sentinel_device(char *device) {
     int fd; /* File descriptor for the port */
 
-    fd = open("/dev/ttyUSB1", O_RDWR | O_NOCTTY | O_NDELAY);
-    if (fd == -1) {
-        /*
-         * Could not open the port.
-         */
+    fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
 
-        perror("open_sentinel_device: Unable to open /dev/ttyS0 - ");
-    }
+    if (fd == -1)
+        return(0);
     else
         fcntl(fd, F_SETFL, FNDELAY);
-
-    printf ( "In Open port fd = %i\n", fd);
 
     return (fd);
 }

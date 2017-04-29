@@ -1,14 +1,13 @@
 #include "libsentinel.h"
 
-int connect_sentinel(void)
-{
+int connect_sentinel(void) {
     puts("Hello, I'm a shared library");
     int fd = open_sentinel_device();
     /** TODO: Make sure the device is open */
     struct termios options;
     tcgetattr(fd, &options);
 
-    /* SEt Baud Rate */
+    /* Set baud rate */
 
     cfsetispeed(&options, B9600);
     cfsetospeed(&options, B9600);
@@ -42,8 +41,7 @@ int connect_sentinel(void)
     return(fd);
 }
 
-int open_sentinel_device(void)
-{
+int open_sentinel_device(void) {
     int fd; /* File descriptor for the port */
 
     fd = open("/dev/ttyUSB1", O_RDWR | O_NOCTTY | O_NDELAY);
@@ -62,11 +60,7 @@ int open_sentinel_device(void)
     return (fd);
 }
 
-bool send_sentinel_command(int fd, char *command)
-{
-    /* Add the line ending */
-    strcat(command, "\n\r");
-
+bool send_sentinel_command(int fd, const char *command) {
     int n = write(fd, command, strlen(command));
 
     if (n < 0) {
@@ -78,8 +72,7 @@ bool send_sentinel_command(int fd, char *command)
     return(true);
 }
 
-bool read_sentinel_data(int fd, char *buffer)
-{
+bool read_sentinel_data(int fd, char *buffer) {
     int n = read(fd, buffer, 1);
 
     if (n == -1) {
@@ -93,10 +86,15 @@ bool read_sentinel_data(int fd, char *buffer)
     return(true);
 }
 
-bool disconnect_sentinel(int fd)
-{
+bool disconnect_sentinel(int fd) {
     if(close(fd))
         return(true);
     else
         return(false);
+}
+
+bool get_sentinel_header(int fd, char *buffer) {
+    send_sentinel_command(fd, SENTINEL_LIST_CMD);
+    read_sentinel_data(fd, buffer);
+    return(false);
 }

@@ -97,8 +97,11 @@ bool download_sentinel_header(int fd, char *buffer) {
     return(true);
 }
 
-/* split_sentinel_header: Takes the raw header buffer and splits it to a string array, one item per dive */
-bool split_sentinel_header(char *buffer, char **head_array) {
+/** split_sentinel_header: Takes the raw header buffer and splits it to
+ *                         a string array, one item per dive
+ */
+
+bool  split_sentinel_header(char *buffer, char **head_array) {
     int num_dive = 0;
     char wbuf[sizeof(buffer)];
     memcpy(wbuf, buffer, sizeof(&buffer));
@@ -148,7 +151,7 @@ bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
     char **h_lines = str_cut(buffer, "\r\n"); /* Cut it by lines */
     int line_idx = 0;
 
-    while(strlen(h_lines[line_idx])) {
+    while(h_lines[line_idx] != NULL) {
         if (strncmp(h_lines[line_idx], "ver=", 4)) {
             header_struct->version = malloc((strlen(h_lines[line_idx]) - 4) * sizeof(char));
             strncpy(header_struct->version, (h_lines[line_idx] + 4), (strlen(h_lines[line_idx]) - 4));
@@ -322,22 +325,143 @@ bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
     return(true);
 }
 
-bool get_sentinel_dive_list(int fd, char *buffer) {
+/**
+ * parse_sentinel_log_line: Parse the single log line of a dive
+ */
+
+bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char *linestr) {
+    int buffer_size = strlen(linestr);
+    dprint(true, "Line length: %d\n", buffer_size);
+    char **log_field = str_cut(linestr, ","); /* Cut it by comma */
+    int field_idx = 0;
+
+    /* We presume that the first 15 fields are always in the same order
+     * and represent the same thing */
+    line->time_idx             = atoi(log_field[0] + 1);
+    line->time_s               = line->time_idx * interval;
+    line->time_string          = seconds_to_hms(line->time_s);
+    line->depth                = atoi(log_field[1]) / 10.0;
+    line->po2                  = atoi(log_field[3]) / 100.0;
+    line->temperature          = atoi(log_field[5] + 1);
+    line->scrubber_left        = atoi(log_field[6] + 1) / 10.0;
+    line->primary_battery_V    = atoi(log_field[7] + 1) / 100.0;
+    line->secondary_battery_V  = atoi(log_field[8] + 1) / 100.0;
+    line->diluent_pressure     = atoi(log_field[9] + 1);
+    line->o2_pressure          = atoi(log_field[10] + 1);
+    line->cell_o2[0]           = atoi(log_field[11] + 1) / 100.0;
+    line->cell_o2[1]           = atoi(log_field[12] + 1) / 100.0;
+    line->cell_o2[2]           = atoi(log_field[13] + 1) / 100.0;
+    line->setpoint             = atoi(log_field[14] + 1) / 100.0;
+    line->ceiling              = atoi(log_field[15] + 1);
+    /* Now if the following field does not start with a S, then we have a note */
+    field_idx = 16;
+    int note_idx = 0;
+
+    while (strncmp(log_field[field_idx], "S", 1) != 0) {
+        line->note = realloc(line->note, (note_idx + 1) * sizeof(sentinel_note_t));
+        get_sentinel_note(log_field[field_idx], line->note[note_idx]);
+        note_idx++;
+        field_idx++;
+    }
+
+    line->tempstick_value[0]  = atoi(log_field[field_idx++] + 1) / 10.0;
+    line->tempstick_value[1]  = atoi(log_field[field_idx++] + 1) / 10.0;
+    line->tempstick_value[2]  = atoi(log_field[field_idx++] + 1) / 10.0;
+    line->tempstick_value[3]  = atoi(log_field[field_idx++] + 1) / 10.0;
+    line->tempstick_value[4]  = atoi(log_field[field_idx++] + 1) / 10.0;
+    line->tempstick_value[5]  = atoi(log_field[field_idx++] + 1) / 10.0;
+    line->tempstick_value[6]  = atoi(log_field[field_idx++] + 1) / 10.0;
+    line->tempstick_value[7]  = atoi(log_field[field_idx++] + 1) / 10.0;
+    line->co2                 = atoi(log_field[field_idx + 2] + 1);
+
+    return(true);
+}
+
+bool get_sentinel_dive_list(int fd, char *buffer, sentinel_header_t **header_list) {
     if (!download_sentinel_header(fd, buffer)) {
         printf("ERROR: Failed to get the Sentinel header\n");
         return(false);
     }
 
-    sentinel_header_t *header_list = malloc(sizeof(sentinel_header_t));
+    char **head_array = str_cut(buffer, "d\r\n");
+    int header_idx = 0;
 
-    if (!parse_sentinel_header(header_list, buffer)) {
-        printf("ERROR: Failed parse the Sentinel header\n");
-        return(false);
+    while (head_array[header_idx] != NULL) {
+        header_list[header_idx] = malloc(sizeof(sentinel_header_t));
+
+        if (!parse_sentinel_header(header_list[header_idx], head_array[header_idx])) {
+            printf("ERROR: Failed parse the Sentinel header\n");
+            return(false);
+        }
+
+        header_idx++;
     }
 
+    /* Again, the last in the array is null so that we know when the array ends */
+    header_list[header_idx] = NULL;
+    /* TODO: Invert the list as it is now from the newest to the oldest */
     return(true);
 }
 
+bool get_sentinel_note(char *note_str, sentinel_note_t *note) {
+    // sentinel_note_t *note = malloc(sizeof(sentinel_note));
+    note->note = malloc((strlen(note_str) + 1) * sizeof(char));
+    strncpy(note->note, note_str, strlen(note_str));
+
+    if (strcmp(note_str, "ASCENT")) {
+        note->type  = 3;
+        note->description = "Ascent";
+    } else if (strcmp(note_str, "ASCENT FAST")) {
+        note->type  = 3;
+        note->description = "High ascent rate";
+    } else if (strcmp(note_str, "CELLmV ERROR")) {
+        note->type  = 20;
+        note->description = "Cell voltage error";
+    } else if (strcmp(note_str, "DECO ALARM")) {
+        note->type  = 1;
+        note->description = "Deco alarm";
+    } else if (strcmp(note_str, "FILTERREDDIFF")) {
+        note->type  = 20;
+        note->description = "Filter reading difference";
+    } else if (strcmp(note_str, "HPRATE HI")) {
+        note->type  = 20;
+        note->description = "High pressure rate";
+    } else if (strcmp(note_str, "PPO2 <HIGH")) {
+        note->type  = 20;
+        note->description = "PO2 very high";
+    } else if (strcmp(note_str, "PPO2 HIGH")) {
+        note->type  = 20;
+        note->description = "PO2 high";
+    } else if (strcmp(note_str, "PPO2 LOW")) {
+        note->type  = 20;
+        note->description = "PO2 low";
+    } else if (strcmp(note_str, "PPO2 mHIGH")) {
+        note->type  = 20;
+        note->description = "PO2 medium high";
+    } else if (strcmp(note_str, "PPO2 mLOW")) {
+        note->type  = 20;
+        note->description = "PO2 medium low";
+    } else if (strcmp(note_str, "PPO2 OFF")) {
+        note->type  = 20;
+        note->description = "No pO2-reading";
+    } else if (strcmp(note_str, "PPO2 SPINC")) {
+        note->type  = 20;
+        note->description = "SP change";
+    } else if (strcmp(note_str, "PPO2 VHIGH")) {
+        note->type  = 20;
+        note->description = "PO2 very high";
+    } else if (strcmp(note_str, "PREDIVE ABORT")) {
+        note->type  = 20;
+        note->description = "No predive check done";
+    } else if (strcmp(note_str, "VALVE")) {
+        note->type  = 20;
+        note->description = "Valve issue detected";
+    } else {
+        printf("Warning: Unknown note: %s\n", note_str);
+    }
+
+    return(note);
+}
 /*************************************************************************/
 /* Minor helper functions used internally                                */
 /*************************************************************************/
@@ -364,7 +488,7 @@ char **str_cut(char *orig_string, const char *delim) {
                 str_array[arr_idx] = malloc((end_ptr - start_ptr + 1) * sizeof(char));
                 strncpy(str_array[arr_idx], start_ptr, (end_ptr - start_ptr));
                 arr_idx++;
-            } /* Else we skip adding to the str_array as the string length is 0*/
+            } /* Else we skip adding to the str_array as the string length is 0 */
 
             end_ptr += win_len; /* Jump over the delimiter string */
             start_ptr = end_ptr;
@@ -394,5 +518,14 @@ char *sentinel_to_utc_datestring(const int sentinel_time) {
         return(0);
     }
 
+    return(outstr);
+}
+
+char *seconds_to_hms(const int seconds) {
+    char *outstr = malloc(200 * sizeof(char));
+    int hours    = seconds / 3600;
+    int mins     = seconds / 60;
+    int secs     = seconds % 60;
+    sprintf(outstr, "%.2d:%.2d:%d.02d", hours, mins, secs);
     return(outstr);
 }

@@ -6,10 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifndef LIBSENTINEL_H
 #define LIBSENTINEL_H
+
+/* Constants */
+#define SENTINEL_TIME_START 694137600
+static const char default_format[] = "%F %T %Z%z";
 
 /* Commands */
 static const char SENTINEL_LIST_CMD[]  = {0x4d}; // d command to list the dive headers
@@ -66,7 +71,8 @@ typedef struct sentinel_dive_header {
     int end_s; /* Original value converted to unixtime */
     char *start_time; /* Derived string representation from the start_s */
     char *end_time; /* Derived string representation from the end_s */
-    float max_depth;
+    double max_depth;
+    int status;
     int otu;
     int atm; /* Atmospheric pressure in mbar */
     int stack; /* No information what this is, could have something to do with the scrubber */
@@ -98,4 +104,6 @@ extern bool get_sentinel_dive_list(int fd, char *buffer);
 
 /* Internal functions */
 char **str_cut(char *orig_string, const char *delim);
+int sentinel_to_unix_timestamp(int sentinel_time);
+char *sentinel_to_utc_datestring(const int sentinel_time);
 #endif  // LIBSENTINEL_H

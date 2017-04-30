@@ -166,8 +166,159 @@ bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
             line_idx++;
             continue;
         }
+        if (strncmp(h_lines[line_idx], "Mem ", 4)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->log_lines = atoi(fields[3]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Start ", 6)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->start_s = sentinel_to_unix_timestamp(atoi(fields[2]));
+            header_struct->start_time = sentinel_to_utc_datestring(atoi(fields[2]));
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Finish ", 7)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->end_s = sentinel_to_unix_timestamp(atoi(fields[2]));
+            header_struct->end_time = sentinel_to_utc_datestring(atoi(fields[2]));
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "MaxD ", 5)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->max_depth = atof(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Status ", 7)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->status = atoi(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "OTU ", 4)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->otu = atoi(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DAtmos ", 7)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->atm = atoi(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DStack ", 7)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->stack = atoi(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DUsage ", 7)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->usage = atoi(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DCNS ", 5)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->cns = atof(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DSafety ", 8)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->safety = atof(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Dexpert, ", 9)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->expert = atoi(fields[1]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Dtpm, ", 6)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->tpm = atoi(fields[1]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DDecoAlg ", 9)) {
+            char **fields = str_cut(h_lines[line_idx], " ");
+            header_struct->decoalg = malloc((strlen(fields[1]) + 1) * sizeof(char));
+            strncpy(header_struct->decoalg, fields[1], strlen(fields[1]));
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DVGMMaxDSafety ", 15)) {
+            header_struct->vgm_max_safety = atof(h_lines[line_idx] + 15);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DVGMStopSafety ", 15)) {
+            header_struct->vgm_stop_safety = atof(h_lines[line_idx] + 15);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "DVGMMidSafety ", 14)) {
+            header_struct->vgm_stop_safety = atof(h_lines[line_idx] + 14);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Dfiltertype, ", 13)) {
+            header_struct->filter_type = atoi(h_lines[line_idx] + 13);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Dcellhealth ", 12)) {
+            char **fields = str_cut((h_lines[line_idx] + 12), ", ");
+            int cell_idx = atoi(fields[0]) - 1;
+            header_struct->cell_health[cell_idx] = atoi(fields[1]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Gas ", 4)) {
+            char **fields = str_cut((h_lines[line_idx] + 4), ", ");
+            int gas_idx = atoi(fields[0]) - 4010;
+            header_struct->gas[gas_idx].n2 = atoi(fields[1]);
+            header_struct->gas[gas_idx].he = atoi(fields[2]);
+            header_struct->gas[gas_idx].o2 = 100 - header_struct->gas[gas_idx].n2 - header_struct->gas[gas_idx].he;
+            header_struct->gas[gas_idx].max_depth = atoi(fields[3]);
+            header_struct->gas[gas_idx].enabled = atoi(fields[4]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
+        if (strncmp(h_lines[line_idx], "Tissue ", 7)) {
+            char **fields = str_cut((h_lines[line_idx] + 7), ", ");
+            int tissue_idx = atoi(fields[0]) - 4020;
+            header_struct->tissue[tissue_idx].t1 = atoi(fields[1]);
+            header_struct->tissue[tissue_idx].t2 = atoi(fields[2]);
+            free(fields);
+            line_idx++;
+            continue;
+        }
     }
 
+    header_struct->log = NULL;
     return(true);
 }
 
@@ -225,4 +376,23 @@ char **str_cut(char *orig_string, const char *delim) {
     str_array[arr_idx] = malloc(sizeof('\0'));
     str_array[arr_idx] = '\0';
     return(str_array);
+}
+
+int sentinel_to_unix_timestamp(const int sentinel_time) {
+    return(sentinel_time + SENTINEL_TIME_START);
+}
+
+char *sentinel_to_utc_datestring(const int sentinel_time) {
+    time_t t = (sentinel_time + SENTINEL_TIME_START);
+    const char *format = default_format;
+    char *outstr = malloc(200 * sizeof(char));
+    struct tm lt;
+    localtime_r(&t, &lt);
+
+    if (strftime(outstr, sizeof(outstr), format, &lt) == 0) {
+        fprintf(stderr, "strftime returned 0");
+        return(0);
+    }
+
+    return(outstr);
 }

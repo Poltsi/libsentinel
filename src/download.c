@@ -82,7 +82,7 @@ int main(int argc, char **argv)
         print_help();
         exit(1);
     }
-    
+
     struct stat sb;
 
     dprint(verbose, "Testing whether we can stat device: %s\n", device_name);

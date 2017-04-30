@@ -106,7 +106,7 @@ bool split_sentinel_header(char *buffer, char **head_array) {
     char *dive_start = wbuf;
     // Get the end of the first dive metadata
     char *dive_end   = NULL;
- 
+
     do {
         printf( "Checking dive: %d", num_dive );
         dive_end = strstr( dive_start, "d\r\n" );

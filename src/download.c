@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -9,7 +8,7 @@ void print_help()
 {
     puts("Usage:\n");
     puts("download -d <device> -f <num> -h -l -n <num> -t <num> -v\n");
-    puts("-d <device> Which device to use, usually /dev/ttyUSB\n");
+    puts("-d <device> Which device to use, usually /dev/ttyUSB0\n");
     puts("-f <num> Optional: Start downloading from this dive, list the dives first to see the number\n");
     puts("-h This help\n");
     puts("-l List the dives\n");
@@ -24,7 +23,7 @@ int main(int argc, char **argv)
     int c = 0;
     int from_dive = 0;
     int to_dive   = 0;
-    char *device_name;
+    char *device_name = malloc(sizeof(char));
     bool verbose    = false;
     bool list_dives = false;
     opterr = 0;
@@ -33,8 +32,7 @@ int main(int argc, char **argv)
         switch (c)
             {
             case 'd': /* Set serial device to <device> */
-                free(device_name);
-                device_name = malloc( strlen( optarg ) * sizeof( char ) );
+                device_name = realloc(device_name, strlen(optarg) * sizeof(char));
                 strcpy(device_name, optarg);
                 break;
             case 'f': /* List dives (from dive header) */
@@ -51,6 +49,7 @@ int main(int argc, char **argv)
                 break;
             case 'v':
                 verbose = true;
+                dprint(verbose, "Verbose set\n");
                 break;
             case 'h': /* Print help and exit */
             default:
@@ -59,34 +58,47 @@ int main(int argc, char **argv)
             }
 
     /* Some rudimentary checks */
-    /* Sanity checks on start and end dive number */
-    if (from_dive > to_dive) {
-        printf("ERROR: The start (%d) of the requested dive list is bigger than the end (%d) of the list, aborting\n", from_dive, to_dive);
+    /* Sanity checks on from and to dive number if they are other than default (0 and 0)*/
+    if (from_dive || to_dive) {
+        if (from_dive > to_dive) {
+            printf("ERROR: The start (%d) of the requested dive list is bigger than the end (%d) of the list, aborting\n", from_dive, to_dive);
 
+            print_help();
+            exit(1);
+        }
+
+        if (from_dive < 0 || to_dive < 0) {
+            printf("ERROR: Either start (%d) of the requested dive list or the end (%d) of the requested dive list is less than zero, aborting\n", from_dive, to_dive);
+            print_help();
+            exit(1);
+        }
+
+        dprint(verbose, "Printing dives from %d to %d\n", from_dive, to_dive);
+    }
+
+    /* Is the device string empty */
+    if (!strlen(device_name)) {
+        printf("ERROR: No device defined\n");
         print_help();
         exit(1);
     }
-
-    if( from_dive < 0 || to_dive < 0) {
-        printf("ERROR: Either start (%d) of the requested dive list or the end (%d) of the requested dive list is less than zero, aborting\n", from_dive, to_dive);
-        print_help();
-        exit(1);
-    }
-
+    
     struct stat sb;
 
+    dprint(verbose, "Testing whether we can stat device: %s\n", device_name);
     if (stat(device_name, &sb) == -1) {
-        perror("stat");
-        exit(EXIT_FAILURE);
+        printf("ERROR: Non-existing device: %s\n", device_name);
+        exit(1);
     }
 
-    if ( (sb.st_mode & S_IFMT) != S_IFCHR ) {
+    dprint(verbose, "Testing whether we can get the type of device: %s\n", device_name);
+    if ((sb.st_mode & S_IFMT) != S_IFCHR) {
         printf("ERROR: Either device '%s' does not exist or it is not a character device, aborting\n", device_name);
         print_help();
         exit(1);
     }
 
-    dprint(verbose, "Opening the serial device: %s", device_name);
+    dprint(verbose, "Opening the serial device: %s\n", device_name);
     int fd = connect_sentinel(device_name);
 
     if (fd < 0) {
@@ -96,14 +108,14 @@ int main(int argc, char **argv)
 
     printf("Connected to: %s\n", device_name);
 
-    if(list_dives) {
-        dprint(verbose, "Printing the list of dives");
+    if (list_dives) {
+        dprint(verbose, "Printing the list of dives\n");
         char *buffer = malloc(1024 * 1024 * sizeof(char));
         
-        get_sentinel_header(fd, buffer);
+        get_sentinel_dive_list(fd, buffer);
         disconnect_sentinel(fd);
     }
 
-    puts("This is a shared library test...");
+    printf("This is a shared library test...\n");
     return(0);
 }

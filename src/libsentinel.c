@@ -62,6 +62,39 @@ int open_sentinel_device(char *device) {
 }
 
 /**
+ * is_sentinel_idle: Checks whether we can read the wait byte (P) 
+ *                   from the serial connection, actually we want
+ *                   to read 3 of them to be sure
+ **/
+
+bool is_sentinel_idle(int fd) {
+    unsigned char read_byte[ 3 ]  = {0,0,0};
+    unsigned char store_byte[ 4 ] = {0,0,0,0};
+    /* We expect to get at least 3 consecutive bytes, PPP */
+    unsigned char expected[ 4 ]   = {0x50,0x50,0x50,0};
+    size_t n = 0;
+    int p    = 0;
+    int m    = memcmp( store_byte, expected, sizeof( expected ) );
+    printf("Match is %d for %d vs %d bytes", m, sizeof( store_byte ), sizeof( expected ) );
+
+    while (m != 0) {
+        int n = read(fd, read_byte, sizeof(read_byte));
+
+        if (n > 0) {
+            for (int i = 0; i < n; i++) {
+                store_byte[p] = read_byte[i];
+                printf("Waiting for 3 wait-bytes, got %d byte, storing it in buf (%d): '%s' comparing it to '%s'", n, p, store_byte, expected);
+                p++;
+                p = p % 3;
+            }
+        }
+
+        m = memcmp(store_byte, expected, sizeof(expected));
+        printf("Match is %d for %d vs %d bytes", m, sizeof(store_byte), sizeof(expected));
+    }
+}
+
+/**
  *
  **/
 

@@ -1,7 +1,6 @@
 #include "libsentinel.h"
 
 int connect_sentinel(char *device) {
-    puts("Hello, I'm a shared library");
     int fd = open_sentinel_device(device);
     /** TODO: Make sure the device is open */
     struct termios options;
@@ -32,7 +31,7 @@ int connect_sentinel(char *device) {
     options.c_oflag &= ~OPOST;
 
     if (tcsetattr( fd, TCSANOW, &options ) == -1)
-        printf ("Error with tcsetattr = %s\n", strerror (errno));
+        printf ("ERROR: Unable to set tcsetattr\n");
     else
         printf ("%s\n", "tcsetattr succeed");
 
@@ -54,15 +53,24 @@ int open_sentinel_device(char *device) {
     return (fd);
 }
 
-bool send_sentinel_command(int fd, const char *command) {
-    int n = write(fd, command, strlen(command));
+bool send_sentinel_command(int fd, const void *command, size_t size) {
+    size_t nbytes = 0;
+    char *buf = malloc((size + 1) * sizeof(char));
+    buf = strncpy(buf, command, size);
+    printf ("Writing byte: '%s' (%lu)\n", buf, size);
 
-    if (n < 0) {
-        fputs("write() of 4 bytes failed!\n", stderr);
-        return(false);
+    while (nbytes < size) {
+        size_t n = write(fd, (const char *) command + nbytes, size - nbytes);
+
+        if (n < 1) {
+            printf("ERROR: write() of %lu bytes failed!\n", (size - nbytes));
+            return(false);
+        }
+
+        nbytes += n;
     }
 
-    printf ("Write succeed n = %i\n", n);
+    printf ("Write succeed\n");
     return(true);
 }
 
@@ -88,7 +96,8 @@ bool disconnect_sentinel(int fd) {
 }
 
 bool download_sentinel_header(int fd, char *buffer) {
-    send_sentinel_command(fd, SENTINEL_LIST_CMD);
+//    const unsigned char command[] = {0x4d};
+    send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
     if (!read_sentinel_data(fd, buffer)) {
         printf("ERROR: Failed to read data from Sentinel\n");
         return(false);

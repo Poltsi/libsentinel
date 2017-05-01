@@ -17,8 +17,8 @@
 static const char default_format[] = "%F %T %Z%z";
 
 /* Commands */
-static const char SENTINEL_LIST_CMD[]  = {0x4d}; // d command to list the dive headers
-static const char SENTINEL_WAIT_BYTE[] = {0x50}; // P the rebreather prints this when it is waiting for a command
+static const unsigned char SENTINEL_LIST_CMD[1]  = {0x4d}; // d command to list the dive headers
+static const unsigned char SENTINEL_WAIT_BYTE[1] = {0x50}; // P the rebreather prints this when it is waiting for a command
 
 /* Macros */
 #define dprint(verbose, ...) ( verbose ? printf(__VA_ARGS__) : 0)
@@ -96,7 +96,7 @@ typedef struct sentinel_dive_header {
 /* External functions */
 extern int connect_sentinel(char *devicex);
 extern int open_sentinel_device(char *device);
-extern bool send_sentinel_command(int fd, const char *command);
+extern bool send_sentinel_command(int fd, const void *command, size_t size);
 extern bool read_sentinel_data(int fd, char *buffer);
 extern bool disconnect_sentinel(int fd);
 extern bool download_sentinel_header(int fd, char *buffer);

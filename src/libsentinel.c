@@ -1,5 +1,9 @@
 #include "libsentinel.h"
 
+/**
+ *
+ **/
+
 int connect_sentinel(char *device) {
     int fd = open_sentinel_device(device);
     /** TODO: Make sure the device is open */
@@ -40,6 +44,10 @@ int connect_sentinel(char *device) {
     return(fd);
 }
 
+/**
+ *
+ **/
+
 int open_sentinel_device(char *device) {
     int fd; /* File descriptor for the port */
 
@@ -52,6 +60,10 @@ int open_sentinel_device(char *device) {
 
     return (fd);
 }
+
+/**
+ *
+ **/
 
 bool send_sentinel_command(int fd, const void *command, size_t size) {
     size_t nbytes = 0;
@@ -74,6 +86,10 @@ bool send_sentinel_command(int fd, const void *command, size_t size) {
     return(true);
 }
 
+/**
+ *
+ **/
+
 bool read_sentinel_data(int fd, char *buffer) {
     int n = read(fd, buffer, 1);
 
@@ -88,6 +104,10 @@ bool read_sentinel_data(int fd, char *buffer) {
     return(true);
 }
 
+/**
+ *
+ **/
+
 bool disconnect_sentinel(int fd) {
     if(close(fd))
         return(true);
@@ -95,8 +115,11 @@ bool disconnect_sentinel(int fd) {
         return(false);
 }
 
+/**
+ *
+ **/
+
 bool download_sentinel_header(int fd, char *buffer) {
-//    const unsigned char command[] = {0x4d};
     send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
     if (!read_sentinel_data(fd, buffer)) {
         printf("ERROR: Failed to read data from Sentinel\n");
@@ -108,9 +131,9 @@ bool download_sentinel_header(int fd, char *buffer) {
 
 /** split_sentinel_header: Takes the raw header buffer and splits it to
  *                         a string array, one item per dive
- */
+ **/
 
-bool  split_sentinel_header(char *buffer, char **head_array) {
+bool split_sentinel_header(char *buffer, char **head_array) {
     int num_dive = 0;
     char wbuf[sizeof(buffer)];
     memcpy(wbuf, buffer, sizeof(&buffer));
@@ -152,7 +175,7 @@ bool  split_sentinel_header(char *buffer, char **head_array) {
 /**
  * parse_sentinel_header: Parse a single dive header to the dive header
  *                        struct from the given string buffer
- */
+ **/
 
 bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
     int buffer_size = strlen(buffer);
@@ -336,7 +359,7 @@ bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
 
 /**
  * parse_sentinel_log_line: Parse the single log line of a dive
- */
+ **/
 
 bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char *linestr) {
     int buffer_size = strlen(linestr);
@@ -386,6 +409,10 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char 
     return(true);
 }
 
+/**
+ *
+ **/
+
 bool get_sentinel_dive_list(int fd, char *buffer, sentinel_header_t **header_list) {
     if (!download_sentinel_header(fd, buffer)) {
         printf("ERROR: Failed to get the Sentinel header\n");
@@ -411,6 +438,10 @@ bool get_sentinel_dive_list(int fd, char *buffer, sentinel_header_t **header_lis
     /* TODO: Invert the list as it is now from the newest to the oldest */
     return(true);
 }
+
+/**
+ *
+ **/
 
 bool get_sentinel_note(char *note_str, sentinel_note_t *note) {
     // sentinel_note_t *note = malloc(sizeof(sentinel_note));
@@ -475,6 +506,10 @@ bool get_sentinel_note(char *note_str, sentinel_note_t *note) {
 /* Minor helper functions used internally                                */
 /*************************************************************************/
 
+/**
+ *
+ **/
+
 char **str_cut(char *orig_string, const char *delim) {
     char **str_array  = NULL; /* We store the splits here */
     int arr_idx = 0; /* Our index counter for str_array */
@@ -511,9 +546,17 @@ char **str_cut(char *orig_string, const char *delim) {
     return(str_array);
 }
 
+/**
+ *
+ **/
+
 int sentinel_to_unix_timestamp(const int sentinel_time) {
     return(sentinel_time + SENTINEL_TIME_START);
 }
+
+/**
+ *
+ **/
 
 char *sentinel_to_utc_datestring(const int sentinel_time) {
     time_t t = (sentinel_time + SENTINEL_TIME_START);
@@ -529,6 +572,10 @@ char *sentinel_to_utc_datestring(const int sentinel_time) {
 
     return(outstr);
 }
+
+/**
+ *
+ **/
 
 char *seconds_to_hms(const int seconds) {
     char *outstr = malloc(200 * sizeof(char));

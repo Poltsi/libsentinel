@@ -91,7 +91,13 @@ bool is_sentinel_idle(int fd) {
 
         m = memcmp(store_byte, expected, sizeof(expected));
         printf("Match is %d for %d vs %d bytes", m, sizeof(store_byte), sizeof(expected));
+
+        if (m == 0) {
+            return(true);
+        }
     }
+
+    return(false);
 }
 
 /**

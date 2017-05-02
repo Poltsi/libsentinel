@@ -106,10 +106,12 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (!is_sentinel_idle(fd)) {
-        printf("ERROR: Unable to get the idle byte of the device, is Sentinel connected?\n");
+    int tries = 20;
+    if (!is_sentinel_idle(fd, tries)) {
+        printf("ERROR: Could not connect to Sentinel after %d tries, is Sentinel connected?\n", tries);
         exit(1);
     }
+
     printf("Connected to: %s\n", device_name);
 
     if (list_dives) {

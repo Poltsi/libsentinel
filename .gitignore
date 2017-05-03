@@ -2,3 +2,5 @@ libsentinel.so
 **.o
 usr
 **.log
+vgcore.*
+core

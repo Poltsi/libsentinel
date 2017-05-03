@@ -595,7 +595,9 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char 
     line->time_idx             = atoi(log_field[0] + 1);
     line->time_s               = line->time_idx * interval;
     line->time_string          = seconds_to_hms(line->time_s);
-    line->depth                = atoi(log_field[1]) / 10.0;
+    /* This is the pressure measurement, not the actual depth, according to Martin Stanton,
+     * who also provided the correct formula to convert to depth */
+    line->depth                = (atoi(log_field[1]) * 6) / 64.0;
     line->po2                  = atoi(log_field[3]) / 100.0;
     line->temperature          = atoi(log_field[5] + 1);
     line->scrubber_left        = atoi(log_field[6] + 1) / 10.0;

@@ -32,7 +32,7 @@ int main(int argc, char **argv)
         switch (c)
             {
             case 'd': /* Set serial device to <device> */
-                device_name = realloc(device_name, strlen(optarg) * sizeof(char));
+                device_name = realloc(device_name, (strlen(optarg) + 1));
                 strcpy(device_name, optarg);
                 break;
             case 'f': /* List dives (from dive header) */
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     dprint(verbose, "Opening the serial device: %s\n", device_name);
     int fd = connect_sentinel(device_name);
 
-    if (fd < 0) {
+    if (fd <= 0) {
         printf("ERROR: Unable to connect to the device: %s\n", device_name);
         exit(1);
     }

@@ -96,8 +96,9 @@ typedef struct sentinel_dive_header {
 /* External functions */
 extern int connect_sentinel(char *devicex);
 extern int open_sentinel_device(char *device);
-extern bool is_sentinel_idle(int fd);
+extern bool is_sentinel_idle(int fd, const int tries);
 extern bool send_sentinel_command(int fd, const void *command, size_t size);
+extern bool read_sentinel_header_list(int fd, char *buffer);
 extern bool read_sentinel_data(int fd, char *buffer);
 extern bool disconnect_sentinel(int fd);
 extern bool download_sentinel_header(int fd, char *buffer);
@@ -110,4 +111,5 @@ char **str_cut(char *orig_string, const char *delim);
 int sentinel_to_unix_timestamp(int sentinel_time);
 char *sentinel_to_utc_datestring(const int sentinel_time);
 char *seconds_to_hms(const int seconds);
+void sentinel_sleep(const int msecs);
 #endif  // LIBSENTINEL_H

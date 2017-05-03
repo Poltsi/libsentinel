@@ -6,7 +6,11 @@
 
 int connect_sentinel(char *device) {
     int fd = open_sentinel_device(device);
-    /** TODO: Make sure the device is open */
+    if (fd == 0) {
+        printf("ERROR: Could not open device: %s\n", device);
+        return(0);
+    }
+
     struct termios options;
     tcgetattr(fd, &options);
 
@@ -64,37 +68,49 @@ int open_sentinel_device(char *device) {
 /**
  * is_sentinel_idle: Checks whether we can read the wait byte (P) 
  *                   from the serial connection, actually we want
- *                   to read 3 of them to be sure
+ *                   to read 3 of them to be sure. It will also flush
+ *                   the buffer if we read something else
  **/
 
-bool is_sentinel_idle(int fd) {
+bool is_sentinel_idle(int fd, const int tries) {
     unsigned char read_byte[ 3 ]  = {0,0,0};
     unsigned char store_byte[ 4 ] = {0,0,0,0};
     /* We expect to get at least 3 consecutive bytes, PPP */
     unsigned char expected[ 4 ]   = {0x50,0x50,0x50,0};
-    size_t n = 0;
+    int i    = tries;
     int p    = 0;
     int m    = memcmp( store_byte, expected, sizeof( expected ) );
-    printf("Match is %d for %d vs %d bytes", m, sizeof( store_byte ), sizeof( expected ) );
 
     while (m != 0) {
+        if (i < 1) {
+            return(false);
+        }
+
         int n = read(fd, read_byte, sizeof(read_byte));
 
         if (n > 0) {
             for (int i = 0; i < n; i++) {
                 store_byte[p] = read_byte[i];
-                printf("Waiting for 3 wait-bytes, got %d byte, storing it in buf (%d): '%s' comparing it to '%s'", n, p, store_byte, expected);
+                // printf("Waiting for 3 wait-bytes, got %d byte, storing it in buf (%d): '%s' comparing it to '%s'\n", n, p, store_byte, expected);
                 p++;
                 p = p % 3;
             }
+
+            /* We reset the tries as this is really flushing the buffer */
+            i = tries;
+            printf("Flushing device buffer (%s)...\n", store_byte);
         }
 
         m = memcmp(store_byte, expected, sizeof(expected));
-        printf("Match is %d for %d vs %d bytes", m, sizeof(store_byte), sizeof(expected));
+        // printf("(%d) Match is %d for %lu vs %lu bytes\n", i, m, sizeof(store_byte), sizeof(expected));
 
         if (m == 0) {
             return(true);
         }
+
+        sentinel_sleep(200);
+
+        i--;
     }
 
     return(false);
@@ -126,19 +142,81 @@ bool send_sentinel_command(int fd, const void *command, size_t size) {
 }
 
 /**
+ * read_sentinel_header_list: Recognize the beginning of header data, and read it.
+ *                            Expects that the list command 'M' has been sent
+ **/
+
+bool read_sentinel_header_list(int fd, char *buffer) {
+    const unsigned char expected[3] = {0x64, 0x0D, 0x0A};
+    unsigned char header[3] = {0,0,0};
+    char buf[1] ={0};
+
+    int i = 0;
+    int n = 0;
+    // Wait to receive the header packet for 20 cycles
+    while (( n == 0) &&
+           (i < 20)) {
+        printf("Header n is: %d '%s' header size should be '%lu'", n, header, sizeof(header));
+        n = read(fd, header, sizeof(header));
+        sentinel_sleep(200);
+        i++;
+    }
+
+    while ((n > 0) &&
+           (memcmp(header, expected, sizeof(expected)) != 0)) {
+        printf("Waited for '%02x %02x %02x', got something else('%02x %02x %02x'), refetching...\n",
+               (int) expected[0], (int) expected[1], (int) expected[2],
+               (int) header[0], (int) header[1], (int) header[2]);
+        n = read(fd, buf, sizeof(buf));
+        header[0] = header[1];
+        header[1] = header[2];
+        header[2] = buf[0];
+        sentinel_sleep(100);
+    }
+
+    const unsigned char dend[1] = {0x50};
+    buf[0] =0;
+    i = 0;
+
+    while (memcmp(dend, buf, sizeof(dend)) != 0) {
+        n = read(fd, buf, sizeof(buf));
+        printf("Read byte: 0x%02x\n", buf[0]);
+        buffer = realloc(buffer, (i + 1));
+        strncpy((buffer + i), buf, 1);
+        sentinel_sleep(100);
+        i++;
+    }
+
+    buffer[i - 1] = 0;
+    buffer[i] = 0;
+    printf("Buffer:\n#####################\n%s\n#####################\n", buffer);
+    return(true);
+}
+
+/**
  *
  **/
 
 bool read_sentinel_data(int fd, char *buffer) {
-    int n = read(fd, buffer, 1);
+    bool wait_bytes = true;
 
-    if (n == -1) {
-        printf ( "Error = %s\n", strerror( errno ) );
-        return(false);
+    while (wait_bytes) {
+        int n = read(fd, buffer, 1);
+
+        if (n == -1) {
+            printf("ERROR: Unable to read any bytes from device\n");
+            return(false);
+        }
+
+        if (strncmp(buffer, "P", 1) != 0) {
+            printf ("read_sentinel_data: No more wait bytes, got '%s' instead\n", buffer);
+            wait_bytes = false;
+        } else {
+            printf ("read_sentinel_data: Got a wait byte: '%s'\n", buffer);
+        }
+
+        sentinel_sleep(400);
     }
-
-    printf ( "Number of bytes to be read = %i\n", n );
-    printf ( "Buf = %s\n", buffer );
 
     return(true);
 }
@@ -160,53 +238,10 @@ bool disconnect_sentinel(int fd) {
 
 bool download_sentinel_header(int fd, char *buffer) {
     send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
-    if (!read_sentinel_data(fd, buffer)) {
-        printf("ERROR: Failed to read data from Sentinel\n");
+    if (!read_sentinel_header_list(fd, buffer)) {
+        printf("ERROR: Failed to read header from Sentinel\n");
         return(false);
     }
-
-    return(true);
-}
-
-/** split_sentinel_header: Takes the raw header buffer and splits it to
- *                         a string array, one item per dive
- **/
-
-bool split_sentinel_header(char *buffer, char **head_array) {
-    int num_dive = 0;
-    char wbuf[sizeof(buffer)];
-    memcpy(wbuf, buffer, sizeof(&buffer));
-    // one which is at the end of it
-    char *dive_start = wbuf;
-    // Get the end of the first dive metadata
-    char *dive_end   = NULL;
-
-    do {
-        printf( "Checking dive: %d", num_dive );
-        dive_end = strstr( dive_start, "d\r\n" );
-        printf( "Reallocing head_array" );
-        head_array = realloc( head_array, ( num_dive + 1 ) * sizeof( *head_array ) );
-
-        int strsize = dive_end - dive_start;
-
-        if( dive_end == NULL ) {/* if there is only one, or if this is the last dive */
-            printf( "Last dive entry" );
-            strsize = ( wbuf + strlen( wbuf ) ) - dive_start;
-        }
-
-        strsize++;
-        printf( "New string length: %d", strsize );
-        printf( "Mallocing head_array entry" );
-        head_array[ num_dive ] = malloc( strsize * sizeof( char ) );
-        printf( "Resetting head_array entry" );
-        memset( head_array[ num_dive ], 0, strsize );
-        printf( "Copying head_array entry" );
-        strncpy( head_array[ num_dive ], dive_start, ( strsize - 1 ) );
-        dive_start = dive_start + strsize + 2; /* Move the start pointer to the beginning of next */
-        printf( "Header length: %d", strsize );
-        num_dive++;
-    }
-    while( dive_end != NULL );
 
     return(true);
 }
@@ -220,157 +255,287 @@ bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
     int buffer_size = strlen(buffer);
     dprint(true, "Parsable buffer size: %d\n", buffer_size);
     char **h_lines = str_cut(buffer, "\r\n"); /* Cut it by lines */
+
+    if (h_lines == NULL) {
+        printf("ERROR: Received empty header string.\n");
+        return(false);
+    }
+
     int line_idx = 0;
 
     while(h_lines[line_idx] != NULL) {
-        if (strncmp(h_lines[line_idx], "ver=", 4)) {
-            header_struct->version = malloc((strlen(h_lines[line_idx]) - 4) * sizeof(char));
+        printf("Inspecting line: '%s'\n", h_lines[line_idx]);
+        if (strncmp(h_lines[line_idx], "ver=", 4) == 0) {
+            header_struct->version = calloc((strlen(h_lines[line_idx]) - 4), sizeof(char));
             strncpy(header_struct->version, (h_lines[line_idx] + 4), (strlen(h_lines[line_idx]) - 4));
+            printf("Found the version: '%s'\n", header_struct->version);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Recint=", 7)) {
+        if (strncmp(h_lines[line_idx], "Recint=", 7) == 0) {
             header_struct->record_interval = atoi(h_lines[line_idx] + 7);
+            printf("Found the recording interval: '%d'\n", header_struct->record_interval);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "SN=", 3)) {
-            header_struct->serial_number = malloc((strlen(h_lines[line_idx]) - 3) * sizeof(char));
-            strncpy(header_struct->serial_number, (h_lines[line_idx] + 3), (strlen(h_lines[line_idx]) - 3));
+        if (strncmp(h_lines[line_idx], "SN=", 3) == 0) {
+            header_struct->serial_number = calloc((strlen(h_lines[line_idx]) - 3), sizeof(char));
+            strncpy(header_struct->serial_number, (h_lines[line_idx] + 3), (strlen(h_lines[line_idx]) - 4));
+            printf("Found the serial number: '%s'\n", header_struct->serial_number);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Mem ", 4)) {
+        if (strncmp(h_lines[line_idx], "Mem ", 4) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->log_lines = atoi(fields[3]);
             free(fields);
+            printf("Found the number of log lines: '%d'\n", header_struct->log_lines);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Start ", 6)) {
+
+        printf("Maybe it is a time start-field?\n");
+        if (strncmp(h_lines[line_idx], "Start ", 6) == 0) {
+            printf("It is a time start-field! Let's split it up by spaces\n");
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
+            printf("Create unix timestamp of: '%s'\n", fields[2]);
             header_struct->start_s = sentinel_to_unix_timestamp(atoi(fields[2]));
+            printf("Create datetime\n");
             header_struct->start_time = sentinel_to_utc_datestring(atoi(fields[2]));
             free(fields);
+            printf("Found the start timestamp: %d = '%s'\n", header_struct->start_s, header_struct->start_time);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Finish ", 7)) {
+        if (strncmp(h_lines[line_idx], "Finish ", 7) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->end_s = sentinel_to_unix_timestamp(atoi(fields[2]));
             header_struct->end_time = sentinel_to_utc_datestring(atoi(fields[2]));
             free(fields);
+            printf("Found the end timestamp: %d = '%s'\n", header_struct->end_s, header_struct->end_time);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "MaxD ", 5)) {
+        if (strncmp(h_lines[line_idx], "MaxD ", 5) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->max_depth = atof(fields[2]);
             free(fields);
+            printf("Found the max depth: %f\n", header_struct->max_depth);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Status ", 7)) {
+        if (strncmp(h_lines[line_idx], "Status ", 7) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->status = atoi(fields[2]);
             free(fields);
+            printf("Found the status: '%d'\n", header_struct->status);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "OTU ", 4)) {
+        if (strncmp(h_lines[line_idx], "OTU ", 4) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->otu = atoi(fields[2]);
             free(fields);
+            printf("Found the OTU: '%d'\n", header_struct->otu);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DAtmos ", 7)) {
+        if (strncmp(h_lines[line_idx], "DAtmos ", 7) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->atm = atoi(fields[2]);
             free(fields);
+            printf("Found the atmospheric pressure (mbar): '%d'\n", header_struct->atm);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DStack ", 7)) {
+        if (strncmp(h_lines[line_idx], "DStack ", 7) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->stack = atoi(fields[2]);
             free(fields);
+            printf("Found the stack: '%d'\n", header_struct->stack);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DUsage ", 7)) {
+        if (strncmp(h_lines[line_idx], "DUsage ", 7) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->usage = atoi(fields[2]);
             free(fields);
+            printf("Found the usage: '%d'\n", header_struct->usage);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DCNS ", 5)) {
+        if (strncmp(h_lines[line_idx], "DCNS ", 5) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->cns = atof(fields[2]);
             free(fields);
+            printf("Found the CNS: %f\n", header_struct->cns);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DSafety ", 8)) {
+        if (strncmp(h_lines[line_idx], "DSafety ", 8) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->safety = atof(fields[2]);
             free(fields);
+            printf("Found the safety: %f\n", header_struct->safety);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Dexpert, ", 9)) {
+        if (strncmp(h_lines[line_idx], "Dexpert, ", 9) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->expert = atoi(fields[1]);
             free(fields);
+            printf("Found the expert: '%d'\n", header_struct->expert);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Dtpm, ", 6)) {
+        if (strncmp(h_lines[line_idx], "Dtpm, ", 6) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             header_struct->tpm = atoi(fields[1]);
             free(fields);
+            printf("Found the TPM: '%d'\n", header_struct->tpm);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DDecoAlg ", 9)) {
+        if (strncmp(h_lines[line_idx], "DDecoAlg ", 9) == 0) {
             char **fields = str_cut(h_lines[line_idx], " ");
-            header_struct->decoalg = malloc((strlen(fields[1]) + 1) * sizeof(char));
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
+            header_struct->decoalg = calloc((strlen(fields[1]) + 1), sizeof(char));
             strncpy(header_struct->decoalg, fields[1], strlen(fields[1]));
             free(fields);
+            printf("Found the decompression algorithm: '%s'\n", header_struct->decoalg);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DVGMMaxDSafety ", 15)) {
+        if (strncmp(h_lines[line_idx], "DVGMMaxDSafety ", 15) == 0) {
             header_struct->vgm_max_safety = atof(h_lines[line_idx] + 15);
+            printf("Found the VGM max safety: %f\n", header_struct->vgm_max_safety);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DVGMStopSafety ", 15)) {
+        if (strncmp(h_lines[line_idx], "DVGMStopSafety ", 15) == 0) {
             header_struct->vgm_stop_safety = atof(h_lines[line_idx] + 15);
+            printf("Found the VGM stop safety: %f\n", header_struct->vgm_stop_safety);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "DVGMMidSafety ", 14)) {
-            header_struct->vgm_stop_safety = atof(h_lines[line_idx] + 14);
+        if (strncmp(h_lines[line_idx], "DVGMMidSafety ", 14) == 0) {
+            header_struct->vgm_mid_safety = atof(h_lines[line_idx] + 14);
+            printf("Found the VGM mid safety: %f\n", header_struct->vgm_mid_safety);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Dfiltertype, ", 13)) {
+        if (strncmp(h_lines[line_idx], "Dfiltertype, ", 13) == 0) {
             header_struct->filter_type = atoi(h_lines[line_idx] + 13);
+            printf("Found the filter type: '%d'\n", header_struct->filter_type);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Dcellhealth ", 12)) {
+        if (strncmp(h_lines[line_idx], "Dcellhealth ", 12) == 0) {
             char **fields = str_cut((h_lines[line_idx] + 12), ", ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             int cell_idx = atoi(fields[0]) - 1;
             header_struct->cell_health[cell_idx] = atoi(fields[1]);
             free(fields);
+            printf("Found the cell health for cell# %d: %d \n", cell_idx, header_struct->cell_health[cell_idx]);
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Gas ", 4)) {
+        if (strncmp(h_lines[line_idx], "Gas ", 4) == 0) {
             char **fields = str_cut((h_lines[line_idx] + 4), ", ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             int gas_idx = atoi(fields[0]) - 4010;
             header_struct->gas[gas_idx].n2 = atoi(fields[1]);
             header_struct->gas[gas_idx].he = atoi(fields[2]);
@@ -378,18 +543,31 @@ bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
             header_struct->gas[gas_idx].max_depth = atoi(fields[3]);
             header_struct->gas[gas_idx].enabled = atoi(fields[4]);
             free(fields);
+            printf("Found the gas setting for gas# %d: %d/%d \n", gas_idx,
+                   header_struct->gas[gas_idx].o2, header_struct->gas[gas_idx].he );
             line_idx++;
             continue;
         }
-        if (strncmp(h_lines[line_idx], "Tissue ", 7)) {
+        if (strncmp(h_lines[line_idx], "Tissue ", 7) == 0) {
             char **fields = str_cut((h_lines[line_idx] + 7), ", ");
+
+            if (fields == NULL) {
+                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                return(false);
+            }
+
             int tissue_idx = atoi(fields[0]) - 4020;
             header_struct->tissue[tissue_idx].t1 = atoi(fields[1]);
             header_struct->tissue[tissue_idx].t2 = atoi(fields[2]);
             free(fields);
+            printf("Found the tissue value for tissue_idx# %d: %d-%d \n", tissue_idx,
+                   header_struct->tissue[tissue_idx].t1, header_struct->tissue[tissue_idx].t2 );
             line_idx++;
             continue;
         }
+
+        printf("Unknown field: '%s'\n", h_lines[line_idx]);
+        line_idx++;
     }
 
     header_struct->log = NULL;
@@ -404,6 +582,12 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char 
     int buffer_size = strlen(linestr);
     dprint(true, "Line length: %d\n", buffer_size);
     char **log_field = str_cut(linestr, ","); /* Cut it by comma */
+
+    if (log_field == NULL) {
+        printf("ERROR: Received empty split list from: '%s'\n", linestr);
+        return(false);
+    }
+
     int field_idx = 0;
 
     /* We presume that the first 15 fields are always in the same order
@@ -459,9 +643,18 @@ bool get_sentinel_dive_list(int fd, char *buffer, sentinel_header_t **header_lis
     }
 
     char **head_array = str_cut(buffer, "d\r\n");
+
+    if (head_array == NULL) {
+        printf("ERROR: Received empty head array from: '%s'\n", buffer);
+        return(false);
+    }
+
     int header_idx = 0;
 
     while (head_array[header_idx] != NULL) {
+        printf("Allocating memory for header pointer (%d)\n", header_idx);
+        header_list = realloc(header_list, (header_idx + 1) * sizeof(char *));
+        printf("Allocating memory for header struct (%d)\n", header_idx);
         header_list[header_idx] = malloc(sizeof(sentinel_header_t));
 
         if (!parse_sentinel_header(header_list[header_idx], head_array[header_idx])) {
@@ -536,7 +729,7 @@ bool get_sentinel_note(char *note_str, sentinel_note_t *note) {
         note->type  = 20;
         note->description = "Valve issue detected";
     } else {
-        printf("Warning: Unknown note: %s\n", note_str);
+        printf("Warning: Unknown note: '%s'\n", note_str);
     }
 
     return(note);
@@ -550,12 +743,16 @@ bool get_sentinel_note(char *note_str, sentinel_note_t *note) {
  **/
 
 char **str_cut(char *orig_string, const char *delim) {
+    if (orig_string == NULL) {
+        printf("Original string is null, return null\n");
+        return(NULL);
+    }
     char **str_array  = NULL; /* We store the splits here */
     int arr_idx = 0; /* Our index counter for str_array */
     char *start_ptr   = orig_string;
     char *end_ptr     = orig_string;
     const int win_len = strlen(delim); /* This is our moving window length */
-    const int orig_len = strlen(orig_string);
+    const long orig_len = strlen(orig_string);
     /* We move the end_ptr one char at a time forward, and at each step we compare
      * whether the next win_len chars are equal to the delim. If this is the case,
      * then we know that the string between start and end ptr is to be stored in our
@@ -564,23 +761,32 @@ char **str_cut(char *orig_string, const char *delim) {
      * is an empty string. The last item in the array is a 0 so we know that this is
      * where it ends */
 
-    while ((end_ptr - orig_string) <= orig_len) {
-        if (strncmp((end_ptr + 1), delim, win_len)) {
+    while ((end_ptr - orig_string) <= (orig_len - win_len)) {
+        if (strncmp((end_ptr + 1), delim, win_len) == 0) {
             if (start_ptr < end_ptr) {
-                str_array = realloc(str_array, (arr_idx + 1) * sizeof(*str_array));
+                str_array = realloc(str_array, (arr_idx + 1) * sizeof(char*));
                 str_array[arr_idx] = malloc((end_ptr - start_ptr + 1) * sizeof(char));
-                strncpy(str_array[arr_idx], start_ptr, (end_ptr - start_ptr));
+                strncpy(str_array[arr_idx], start_ptr, (end_ptr + 1 - start_ptr));
                 arr_idx++;
             } /* Else we skip adding to the str_array as the string length is 0 */
 
-            end_ptr += win_len; /* Jump over the delimiter string */
+            end_ptr += win_len + 1; /* Jump over the delimiter string */
             start_ptr = end_ptr;
         } else {
             end_ptr++;
         }
     }
 
-    str_array[arr_idx] = malloc(sizeof('\0'));
+    /* We may have a residue string which needs to be stored */
+    if (start_ptr < end_ptr) {
+        str_array = realloc(str_array, (arr_idx + 1) * sizeof(char*));
+        str_array[arr_idx] = malloc((end_ptr + win_len + 1 - start_ptr) * sizeof(char));
+        strncpy(str_array[arr_idx], start_ptr, (end_ptr + win_len - start_ptr));
+        arr_idx++;
+    }
+
+    str_array = realloc(str_array, (arr_idx) * sizeof(char*));
+    str_array[arr_idx] = malloc(sizeof(char));
     str_array[arr_idx] = '\0';
     return(str_array);
 }
@@ -600,7 +806,7 @@ int sentinel_to_unix_timestamp(const int sentinel_time) {
 char *sentinel_to_utc_datestring(const int sentinel_time) {
     time_t t = (sentinel_time + SENTINEL_TIME_START);
     const char *format = default_format;
-    char *outstr = malloc(200 * sizeof(char));
+    char *outstr = calloc(60, sizeof(char));
     struct tm lt;
     localtime_r(&t, &lt);
 
@@ -623,4 +829,21 @@ char *seconds_to_hms(const int seconds) {
     int secs     = seconds % 60;
     sprintf(outstr, "%.2d:%.2d:%d.02d", hours, mins, secs);
     return(outstr);
+}
+
+/**
+ *
+ **/
+
+void sentinel_sleep(const int msecs) {
+    struct timespec ts;
+    ts.tv_sec  = (msecs / 1000);
+    ts.tv_nsec = (msecs % 1000) * 1000000;
+
+    while (nanosleep (&ts, &ts) != 0) {
+        int errcode = errno;
+        if (errcode != EINTR ) {
+            printf("Something went wrong while nanosleeping\n");
+        }
+    }
 }

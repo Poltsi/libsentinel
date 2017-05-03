@@ -29,33 +29,32 @@ int main(int argc, char **argv)
     opterr = 0;
 
     while ((c = getopt (argc, argv, "d:f:hln:t:v")) != -1)
-        switch (c)
-            {
-            case 'd': /* Set serial device to <device> */
-                device_name = realloc(device_name, (strlen(optarg) + 1));
-                strcpy(device_name, optarg);
-                break;
-            case 'f': /* List dives (from dive header) */
-                from_dive = atoi(optarg);
-                break;
-            case 'l': /* List dives (from dive header) */
-                list_dives = true;
-                break;
-            case 'n': /* Download dive #n */
-                from_dive = to_dive = atoi(optarg);
-                break;
-            case 't': /* Download dive #n */
-                to_dive = atoi(optarg);
-                break;
-            case 'v':
-                verbose = true;
-                dprint(verbose, "Verbose set\n");
-                break;
-            case 'h': /* Print help and exit */
-            default:
-                print_help();
-                exit(0);
-            }
+        switch (c) {
+        case 'd': /* Set serial device to <device> */
+            device_name = realloc(device_name, (strlen(optarg) + 1));
+            strcpy(device_name, optarg);
+            break;
+        case 'f': /* List dives (from dive header) */
+            from_dive = atoi(optarg);
+            break;
+        case 'l': /* List dives (from dive header) */
+            list_dives = true;
+            break;
+        case 'n': /* Download dive #n */
+            from_dive = to_dive = atoi(optarg);
+            break;
+        case 't': /* Download dive #n */
+            to_dive = atoi(optarg);
+            break;
+        case 'v':
+            verbose = true;
+            dprint(verbose, "Verbose set\n");
+            break;
+        case 'h': /* Print help and exit */
+        default:
+            print_help();
+            exit(0);
+        }
 
     /* Some rudimentary checks */
     /* Sanity checks on from and to dive number if they are other than default (0 and 0)*/

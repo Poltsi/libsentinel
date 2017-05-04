@@ -80,6 +80,7 @@ bool is_sentinel_idle(int fd, const int tries) {
     int i    = tries;
     int p    = 0;
     int m    = memcmp( store_byte, expected, sizeof( expected ) );
+    int flushed_bytes = 0;
 
     while (m != 0) {
         if (i < 1) {
@@ -98,13 +99,15 @@ bool is_sentinel_idle(int fd, const int tries) {
 
             /* We reset the tries as this is really flushing the buffer */
             i = tries;
-            printf("Flushing device buffer (%s)...\n", store_byte);
+            // printf("Flushing device buffer (%s)...\n", store_byte);
         }
 
+        flushed_bytes += n;
         m = memcmp(store_byte, expected, sizeof(expected));
         // printf("(%d) Match is %d for %lu vs %lu bytes\n", i, m, sizeof(store_byte), sizeof(expected));
 
         if (m == 0) {
+            if (flushed_bytes > 0) printf("Flushed %d bytes from device buffer\n", flushed_bytes);
             return(true);
         }
 
@@ -157,7 +160,7 @@ bool read_sentinel_header_list(int fd, char *buffer) {
     // Wait to receive the header packet for 20 cycles
     while (( n == 0) &&
            (i < 20)) {
-        printf("Header n is: %d '%s' header size should be '%lu'", n, header, sizeof(header));
+        printf("Waiting (%d) to get data from device buffer\n", i);
         n = read(fd, header, sizeof(header));
         sentinel_sleep(200);
         i++;
@@ -181,20 +184,20 @@ bool read_sentinel_header_list(int fd, char *buffer) {
 
     while (memcmp(dend, buf, sizeof(dend)) != 0) {
         n = read(fd, buf, sizeof(buf));
-        // printf("Read byte: 0x%02x\n", buf[0]);
         buffer = realloc(buffer, (i + 1));
         strncpy((buffer + i), buf, 1);
         sentinel_sleep(100);
         i++;
     }
 
-    printf("Read bytes: 0x%d\n", i);
+    printf("Read bytes: %d\n", i);
 
     if (i > 0) {
         buffer[i - 1] = 0;
     }
 
-    printf("Buffer:\n#####################\n%s\n#####################\n", buffer);
+    printf("%s: Buffer:\n#####################\n%s\n#####################\n", __func__, buffer);
+    printf("%s: Received buffer length: %lu\n", __func__, strlen(buffer));
     return(true);
 }
 
@@ -246,6 +249,13 @@ bool download_sentinel_header(int fd, char *buffer) {
     if (!read_sentinel_header_list(fd, buffer)) {
         printf("ERROR: Failed to read header from Sentinel\n");
         return(false);
+    }
+
+    if (buffer == NULL) {
+        printf("%s: Received NULL value as answer from device\n", __func__);
+        return(false);
+    } else {
+        printf("%s: Received buffer length: %lu\n", __func__, strlen(buffer));
     }
 
     return(true);
@@ -643,11 +653,15 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char 
  *
  **/
 
-bool get_sentinel_dive_list(int fd, char *buffer, sentinel_header_t **header_list) {
+bool get_sentinel_dive_list(int fd, sentinel_header_t **header_list) {
+    /* Create and minimal allocation of the buffer */
+    char *buffer = calloc(1, sizeof(char));
     if (!download_sentinel_header(fd, buffer)) {
         printf("ERROR: Failed to get the Sentinel header\n");
         return(false);
     }
+
+    printf("%s: Received buffer length: %lu\n", __func__, strlen(buffer));
 
     char **head_array = str_cut(buffer, "d\r\n");
 
@@ -765,6 +779,8 @@ char **str_cut(char *orig_string, const char *delim) {
     char *end_ptr     = orig_string;
     const int win_len = strlen(delim); /* This is our moving window length */
     const long orig_len = strlen(orig_string);
+
+    printf("Will split the buffer (%ld) with delimitator (%d)\n", orig_len, win_len);
     /* We move the end_ptr one char at a time forward, and at each step we compare
      * whether the next win_len chars are equal to the delim. If this is the case,
      * then we know that the string between start and end ptr is to be stored in our

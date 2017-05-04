@@ -18,8 +18,7 @@ void print_help()
     puts("\n");
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int c = 0;
     int from_dive = 0;
     int to_dive   = 0;
@@ -115,9 +114,8 @@ int main(int argc, char **argv)
 
     if (list_dives) {
         dprint(verbose, "Printing the list of dives\n");
-        char *buffer = calloc(1024 * 1024, sizeof(char));
         sentinel_header_t **header_list = NULL;
-        get_sentinel_dive_list(fd, buffer, header_list);
+        get_sentinel_dive_list(fd, header_list);
         disconnect_sentinel(fd);
     }
 

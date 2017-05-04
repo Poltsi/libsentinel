@@ -103,7 +103,7 @@ extern bool read_sentinel_data(int fd, char *buffer);
 extern bool disconnect_sentinel(int fd);
 extern bool download_sentinel_header(int fd, char *buffer);
 extern bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer);
-extern bool get_sentinel_dive_list(int fd, char *buffer, sentinel_header_t **header_list);
+extern bool get_sentinel_dive_list(int fd, sentinel_header_t **header_list);
 extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char *linestr);
 extern bool get_sentinel_note(char *note_str, sentinel_note_t *note);
 /* Internal functions */

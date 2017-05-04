@@ -4,3 +4,5 @@ usr
 **.log
 vgcore.*
 core
+.kdev4
+libsentinel.kdev4

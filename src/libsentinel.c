@@ -122,7 +122,8 @@ bool is_sentinel_idle(int fd, const int tries) {
 
 bool send_sentinel_command(int fd, const void *command, size_t size) {
     size_t nbytes = 0;
-    char *buf = malloc((size + 1) * sizeof(char));
+    char *buf = calloc(size + 1, sizeof(char));
+    // memset(buf, 0, size + 1);
     buf = strncpy(buf, command, size);
     printf ("Writing byte: '%s' (%lu)\n", buf, size);
 
@@ -164,9 +165,9 @@ bool read_sentinel_header_list(int fd, char *buffer) {
 
     while ((n > 0) &&
            (memcmp(header, expected, sizeof(expected)) != 0)) {
-        printf("Waited for '%02x %02x %02x', got something else('%02x %02x %02x'), refetching...\n",
+/*        printf("Waited for '%02x %02x %02x', got something else('%02x %02x %02x'), refetching...\n",
                (int) expected[0], (int) expected[1], (int) expected[2],
-               (int) header[0], (int) header[1], (int) header[2]);
+               (int) header[0], (int) header[1], (int) header[2]); */
         n = read(fd, buf, sizeof(buf));
         header[0] = header[1];
         header[1] = header[2];
@@ -180,15 +181,19 @@ bool read_sentinel_header_list(int fd, char *buffer) {
 
     while (memcmp(dend, buf, sizeof(dend)) != 0) {
         n = read(fd, buf, sizeof(buf));
-        printf("Read byte: 0x%02x\n", buf[0]);
+        // printf("Read byte: 0x%02x\n", buf[0]);
         buffer = realloc(buffer, (i + 1));
         strncpy((buffer + i), buf, 1);
         sentinel_sleep(100);
         i++;
     }
 
-    buffer[i - 1] = 0;
-    buffer[i] = 0;
+    printf("Read bytes: 0x%d\n", i);
+
+    if (i > 0) {
+        buffer[i - 1] = 0;
+    }
+
     printf("Buffer:\n#####################\n%s\n#####################\n", buffer);
     return(true);
 }
@@ -678,7 +683,6 @@ bool get_sentinel_dive_list(int fd, char *buffer, sentinel_header_t **header_lis
  **/
 
 bool get_sentinel_note(char *note_str, sentinel_note_t *note) {
-    // sentinel_note_t *note = malloc(sizeof(sentinel_note));
     note->note = malloc((strlen(note_str) + 1) * sizeof(char));
     strncpy(note->note, note_str, strlen(note_str));
 
@@ -749,6 +753,12 @@ char **str_cut(char *orig_string, const char *delim) {
         printf("Original string is null, return null\n");
         return(NULL);
     }
+
+    if (delim == NULL) {
+        printf("Delimiter is null, return null\n");
+        /* TODO: Should this actually return an array with each char is separated? */
+        return(NULL);
+    }
     char **str_array  = NULL; /* We store the splits here */
     int arr_idx = 0; /* Our index counter for str_array */
     char *start_ptr   = orig_string;
@@ -767,7 +777,7 @@ char **str_cut(char *orig_string, const char *delim) {
         if (strncmp((end_ptr + 1), delim, win_len) == 0) {
             if (start_ptr < end_ptr) {
                 str_array = realloc(str_array, (arr_idx + 1) * sizeof(char*));
-                str_array[arr_idx] = malloc((end_ptr - start_ptr + 1) * sizeof(char));
+                str_array[arr_idx] = calloc((end_ptr - start_ptr + 1), sizeof(char));
                 strncpy(str_array[arr_idx], start_ptr, (end_ptr + 1 - start_ptr));
                 arr_idx++;
             } /* Else we skip adding to the str_array as the string length is 0 */
@@ -782,7 +792,7 @@ char **str_cut(char *orig_string, const char *delim) {
     /* We may have a residue string which needs to be stored */
     if (start_ptr < end_ptr) {
         str_array = realloc(str_array, (arr_idx + 1) * sizeof(char*));
-        str_array[arr_idx] = malloc((end_ptr + win_len + 1 - start_ptr) * sizeof(char));
+        str_array[arr_idx] = calloc((end_ptr + win_len + 1 - start_ptr), sizeof(char));
         strncpy(str_array[arr_idx], start_ptr, (end_ptr + win_len - start_ptr));
         arr_idx++;
     }
@@ -825,7 +835,7 @@ char *sentinel_to_utc_datestring(const int sentinel_time) {
  **/
 
 char *seconds_to_hms(const int seconds) {
-    char *outstr = malloc(200 * sizeof(char));
+    char *outstr = calloc(200, sizeof(char));
     int hours    = seconds / 3600;
     int mins     = seconds / 60;
     int secs     = seconds % 60;

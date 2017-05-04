@@ -115,7 +115,7 @@ int main(int argc, char **argv)
 
     if (list_dives) {
         dprint(verbose, "Printing the list of dives\n");
-        char *buffer = malloc(1024 * 1024 * sizeof(char));
+        char *buffer = calloc(1024 * 1024, sizeof(char));
         sentinel_header_t **header_list = NULL;
         get_sentinel_dive_list(fd, buffer, header_list);
         disconnect_sentinel(fd);

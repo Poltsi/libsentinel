@@ -4,5 +4,6 @@ usr
 **.log
 vgcore.*
 core
+**.kate-swp
 .kdev4
 libsentinel.kdev4

@@ -23,6 +23,8 @@ LDFLAGS      = -shared
 LINKFLAG     = -Wl,-rpath $(LIBDIR)
 RELEASEFLAGS = -O2 -D NDEBUG -combine -fwhole-program
 
+VALGRIND_PARAMS =  --leak-check=yes --leak-check=full --show-leak-kinds=all --show-reachable=yes --num-callers=20 --track-fds=yes
+
 all: check $(LIBFILE) $(CMDTOOL)
 
 check:
@@ -38,5 +40,7 @@ $(LIBFILE): $(LIBOBJECTS)
 $(CMDTOOL): $(LIBFILE) $(BINOBJECTS)
 	$(CC) $(FLAGS) $(CFLAGS) -L$(LIBDIR) $(BINOBJECTS) -l$(LIBNAME) $(LINKFLAG) $(DEBUGFLAGS) -o $(BINDIR)/$(CMDTOOL)
 
+valgrind: clean $(CMDTOOL)
+	valgrind $(VALGRIND_PARAMS) $(BINDIR)/$(CMDTOOL) -d $(PORT) -l -v 2>&1 | tee out-`date "+%Y.%m.%d-%H:%M:%S"`.log
 clean:
 	rm -f $(LIBOBJECTS) $(BINOBJECTS) $(BINDIR)/$(CMDTOOL) $(LIBDIR)/$(LIBFILE)

@@ -4,7 +4,7 @@
  *
  **/
 
-int connect_sentinel(char *device) {
+int connect_sentinel(char* device) {
     int fd = open_sentinel_device(device);
     if (fd == 0) {
         printf("ERROR: Could not open device: %s\n", device);
@@ -52,7 +52,7 @@ int connect_sentinel(char *device) {
  *
  **/
 
-int open_sentinel_device(char *device) {
+int open_sentinel_device(char* device) {
     int fd; /* File descriptor for the port */
 
     fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
@@ -123,7 +123,7 @@ bool is_sentinel_idle(int fd, const int tries) {
  *
  **/
 
-bool send_sentinel_command(int fd, const void *command, size_t size) {
+bool send_sentinel_command(int fd, const void* command, size_t size) {
     size_t nbytes = 0;
     char *buf = calloc(size + 1, sizeof(char));
     // memset(buf, 0, size + 1);
@@ -150,7 +150,7 @@ bool send_sentinel_command(int fd, const void *command, size_t size) {
  *                            Expects that the list command 'M' has been sent
  **/
 
-bool read_sentinel_header_list(int fd, char *buffer) {
+bool read_sentinel_header_list(int fd, char** buffer) {
     const unsigned char expected[3] = {0x64, 0x0D, 0x0A};
     unsigned char header[3] = {0,0,0};
     char buf[1] ={0};
@@ -184,20 +184,20 @@ bool read_sentinel_header_list(int fd, char *buffer) {
 
     while (memcmp(dend, buf, sizeof(dend)) != 0) {
         n = read(fd, buf, sizeof(buf));
-        buffer = realloc(buffer, (i + 1));
-        strncpy((buffer + i), buf, 1);
+        *buffer = realloc(*buffer, (i + 1));
+        strncpy((*buffer + i), buf, 1);
         sentinel_sleep(100);
         i++;
     }
 
     printf("Read bytes: %d\n", i);
 
-    if (i > 0) {
-        buffer[i - 1] = 0;
+/*    if (i > 0) {
+        (*buffer)[i - 1] = 0;
     }
-
-    printf("%s: Buffer:\n#####################\n%s\n#####################\n", __func__, buffer);
-    printf("%s: Received buffer length: %lu\n", __func__, strlen(buffer));
+*/
+    printf("%s: Buffer:\n#####################\n%s\n#####################\n", __func__, *buffer);
+    printf("%s: Received buffer length: %lu\n", __func__, strlen(*buffer));
     return(true);
 }
 
@@ -205,7 +205,7 @@ bool read_sentinel_header_list(int fd, char *buffer) {
  *
  **/
 
-bool read_sentinel_data(int fd, char *buffer) {
+bool read_sentinel_data(int fd, char** buffer) {
     bool wait_bytes = true;
 
     while (wait_bytes) {
@@ -216,11 +216,11 @@ bool read_sentinel_data(int fd, char *buffer) {
             return(false);
         }
 
-        if (strncmp(buffer, "P", 1) != 0) {
-            printf ("read_sentinel_data: No more wait bytes, got '%s' instead\n", buffer);
+        if (strncmp(*buffer, "P", 1) != 0) {
+            printf ("read_sentinel_data: No more wait bytes, got '%s' instead\n", *buffer);
             wait_bytes = false;
         } else {
-            printf ("read_sentinel_data: Got a wait byte: '%s'\n", buffer);
+            printf ("read_sentinel_data: Got a wait byte: '%s'\n", *buffer);
         }
 
         sentinel_sleep(400);
@@ -241,21 +241,22 @@ bool disconnect_sentinel(int fd) {
 }
 
 /**
- *
+ * download_sentinel_header: Send command and read the raw output, storing it in the buffer variable
+ *                           provided
  **/
 
-bool download_sentinel_header(int fd, char *buffer) {
+bool download_sentinel_header(int fd, char** buffer) {
     send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
     if (!read_sentinel_header_list(fd, buffer)) {
         printf("ERROR: Failed to read header from Sentinel\n");
         return(false);
     }
 
-    if (buffer == NULL) {
+    if (*buffer == NULL) {
         printf("%s: Received NULL value as answer from device\n", __func__);
         return(false);
     } else {
-        printf("%s: Received buffer length: %lu\n", __func__, strlen(buffer));
+        printf("%s: Received buffer length: %lu\n", __func__, strlen(*buffer));
     }
 
     return(true);
@@ -266,7 +267,7 @@ bool download_sentinel_header(int fd, char *buffer) {
  *                        struct from the given string buffer
  **/
 
-bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
+bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
     int buffer_size = strlen(buffer);
     dprint(true, "Parsable buffer size: %d\n", buffer_size);
     char **h_lines = str_cut(buffer, "\r\n"); /* Cut it by lines */
@@ -593,7 +594,7 @@ bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer) {
  * parse_sentinel_log_line: Parse the single log line of a dive
  **/
 
-bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char *linestr) {
+bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr) {
     int buffer_size = strlen(linestr);
     dprint(true, "Line length: %d\n", buffer_size);
     char **log_field = str_cut(linestr, ","); /* Cut it by comma */
@@ -653,10 +654,10 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char 
  *
  **/
 
-bool get_sentinel_dive_list(int fd, sentinel_header_t **header_list) {
+bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
     /* Create and minimal allocation of the buffer */
     char *buffer = calloc(1, sizeof(char));
-    if (!download_sentinel_header(fd, buffer)) {
+    if (!download_sentinel_header(fd, &buffer)) {
         printf("ERROR: Failed to get the Sentinel header\n");
         return(false);
     }
@@ -696,7 +697,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t **header_list) {
  *
  **/
 
-bool get_sentinel_note(char *note_str, sentinel_note_t *note) {
+bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
     note->note = malloc((strlen(note_str) + 1) * sizeof(char));
     strncpy(note->note, note_str, strlen(note_str));
 
@@ -762,7 +763,7 @@ bool get_sentinel_note(char *note_str, sentinel_note_t *note) {
  *
  **/
 
-char **str_cut(char *orig_string, const char *delim) {
+char** str_cut(char* orig_string, const char* delim) {
     if (orig_string == NULL) {
         printf("Original string is null, return null\n");
         return(NULL);
@@ -831,7 +832,7 @@ int sentinel_to_unix_timestamp(const int sentinel_time) {
  *
  **/
 
-char *sentinel_to_utc_datestring(const int sentinel_time) {
+char* sentinel_to_utc_datestring(const int sentinel_time) {
     time_t t = (sentinel_time + SENTINEL_TIME_START);
     const char *format = default_format;
     char *outstr = calloc(60, sizeof(char));
@@ -850,7 +851,7 @@ char *sentinel_to_utc_datestring(const int sentinel_time) {
  *
  **/
 
-char *seconds_to_hms(const int seconds) {
+char* seconds_to_hms(const int seconds) {
     char *outstr = calloc(200, sizeof(char));
     int hours    = seconds / 3600;
     int mins     = seconds / 60;

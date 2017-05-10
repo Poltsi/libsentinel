@@ -94,22 +94,22 @@ typedef struct sentinel_dive_header {
 } sentinel_header_t;
 
 /* External functions */
-extern int connect_sentinel(char *devicex);
-extern int open_sentinel_device(char *device);
+extern int connect_sentinel(char* devicex);
+extern int open_sentinel_device(char* device);
 extern bool is_sentinel_idle(int fd, const int tries);
-extern bool send_sentinel_command(int fd, const void *command, size_t size);
-extern bool read_sentinel_header_list(int fd, char *buffer);
-extern bool read_sentinel_data(int fd, char *buffer);
+extern bool send_sentinel_command(int fd, const void* command, size_t size);
+extern bool read_sentinel_header_list(int fd, char** buffer);
+extern bool read_sentinel_data(int fd, char** buffer);
 extern bool disconnect_sentinel(int fd);
-extern bool download_sentinel_header(int fd, char *buffer);
-extern bool parse_sentinel_header(sentinel_header_t *header_struct, char *buffer);
-extern bool get_sentinel_dive_list(int fd, sentinel_header_t **header_list);
-extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t *line, char *linestr);
-extern bool get_sentinel_note(char *note_str, sentinel_note_t *note);
+extern bool download_sentinel_header(int fd, char** buffer);
+extern bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer);
+extern bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list);
+extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr);
+extern bool get_sentinel_note(char* note_str, sentinel_note_t* note);
 /* Internal functions */
-char **str_cut(char *orig_string, const char *delim);
+char** str_cut(char* orig_string, const char* delim);
 int sentinel_to_unix_timestamp(int sentinel_time);
-char *sentinel_to_utc_datestring(const int sentinel_time);
-char *seconds_to_hms(const int seconds);
+char* sentinel_to_utc_datestring(const int sentinel_time);
+char* seconds_to_hms(const int seconds);
 void sentinel_sleep(const int msecs);
 #endif  // LIBSENTINEL_H

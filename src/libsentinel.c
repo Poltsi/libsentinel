@@ -179,25 +179,50 @@ bool read_sentinel_header_list(int fd, char** buffer) {
     }
 
     const unsigned char dend[1] = {0x50};
-    buf[0] =0;
+    buf[0] = 0;
     i = 0;
 
     while (memcmp(dend, buf, sizeof(dend)) != 0) {
         n = read(fd, buf, sizeof(buf));
-        *buffer = realloc(*buffer, (i + 1));
-        strncpy((*buffer + i), buf, 1);
+        char* tmp = realloc(*buffer, strlen(*buffer) + 2);
+
+        if (tmp != NULL) {
+            *buffer = tmp;
+            printf("%s: Reallocated to: (%d)\n", __func__, (int) strlen(*buffer));
+        } else {
+            printf("%s: Failed to reallocate buffer\n", __func__);
+            return(false);
+        }
+
+        tmp = strncat(*buffer, buf, 1);
+
+        if (tmp != NULL) {
+            *buffer = tmp;
+            printf("%s: Concatenated to: (%d)\n", __func__, (int) strlen(*buffer));
+        } else {
+            printf("%s: Failed to concatenate buffer\n", __func__);
+            return(false);
+        }
+
+        // *buffer = realloc(*buffer, (i + 1));
+        // strncpy((*buffer + i), buf, 1);
         sentinel_sleep(100);
         i++;
     }
 
     printf("Read bytes: %d\n", i);
-
-/*    if (i > 0) {
-        (*buffer)[i - 1] = 0;
+/*
+    if (i > 0) {
+        buffer[i - 1] = '\0';
     }
 */
-    printf("%s: Buffer:\n#####################\n%s\n#####################\n", __func__, *buffer);
-    printf("%s: Received buffer length: %lu\n", __func__, strlen(*buffer));
+    if (buffer == NULL || buffer == 0)
+        printf("%s: Buffer is empty\n", __func__);
+    else {
+        printf("%s: Buffer:\n#####################\n%s\n#####################\n", __func__, *buffer);
+        printf("%s: Received buffer length: %lu\n", __func__, strlen(*buffer));
+    }
+
     return(true);
 }
 
@@ -666,6 +691,9 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
 
     char** head_array = str_cut(buffer, "d\r\n");
 
+    /* We can now free the original buffer */
+    free(buffer);
+
     if (head_array == NULL) {
         printf("ERROR: Received empty head array from: '%s'\n", buffer);
         return(false);
@@ -769,7 +797,7 @@ char** str_cut(char* orig_string, const char* delim) {
         return(NULL);
     }
 
-    if (delim == NULL) {
+    if (delim == NULL || delim == 0) {
         printf("Delimiter is null, return null\n");
         /* TODO: Should this actually return an array with each char is separated? */
         return(NULL);
@@ -781,7 +809,10 @@ char** str_cut(char* orig_string, const char* delim) {
     const int win_len = strlen(delim); /* This is our moving window length */
     const long orig_len = strlen(orig_string);
 
-    printf("Will split the buffer (%ld) with delimitator (%d)\n", orig_len, win_len);
+    if (delim == 0)
+        printf("Will split the buffer (%ld) with delimitator (%d) \\0\n", orig_len, win_len);
+    else
+        printf("Will split the buffer (%ld) with delimitator (%d): %s\n", orig_len, win_len, delim);
     /* We move the end_ptr one char at a time forward, and at each step we compare
      * whether the next win_len chars are equal to the delim. If this is the case,
      * then we know that the string between start and end ptr is to be stored in our
@@ -840,7 +871,7 @@ char* sentinel_to_utc_datestring(const int sentinel_time) {
     localtime_r(&t, &lt);
 
     if (strftime(outstr, sizeof(outstr), format, &lt) == 0) {
-        fprintf(stderr, "strftime returned 0");
+        fprintf(stderr, "strftime returned 0 for %d\n", sentinel_time);
         return(0);
     }
 

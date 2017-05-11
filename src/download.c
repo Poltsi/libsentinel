@@ -6,16 +6,16 @@
 
 void print_help()
 {
-    puts("Usage:\n");
-    puts("download -d <device> -f <num> -h -l -n <num> -t <num> -v\n");
-    puts("-d <device> Which device to use, usually /dev/ttyUSB0\n");
-    puts("-f <num> Optional: Start downloading from this dive, list the dives first to see the number\n");
-    puts("-h This help\n");
-    puts("-l List the dives\n");
-    puts("-n <num> Download this specific dive, list the dives first to see the number\n");
-    puts("-t <num> Download the dives including this one, list the dives first to see the number\n");
-    puts("-v Be more verbose\n");
-    puts("\n");
+    printf("Usage:\n");
+    printf("download -d <device> -f <num> -h -l -n <num> -t <num> -v\n");
+    printf("-d <device> Which device to use, usually /dev/ttyUSB0\n");
+    printf("-f <num> Optional: Start downloading from this dive, list the dives first to see the number\n");
+    printf("-h This help\n");
+    printf("-l List the dives\n");
+    printf("-n <num> Download this specific dive, list the dives first to see the number\n");
+    printf("-t <num> Download the dives including this one, list the dives first to see the number\n");
+    printf("-v Be more verbose\n");
+    printf("\n");
 }
 
 int main(int argc, char **argv) {

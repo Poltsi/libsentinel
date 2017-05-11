@@ -117,6 +117,9 @@ int main(int argc, char **argv) {
         sentinel_header_t **header_list = NULL;
         get_sentinel_dive_list(fd, header_list);
         disconnect_sentinel(fd);
+
+        if (header_list != NULL)
+            free(header_list);
     }
 
     printf("This is a shared library test...\n");

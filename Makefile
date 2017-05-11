@@ -42,5 +42,6 @@ $(CMDTOOL): $(LIBFILE) $(BINOBJECTS)
 
 valgrind: clean $(CMDTOOL)
 	valgrind $(VALGRIND_PARAMS) $(BINDIR)/$(CMDTOOL) -d $(PORT) -l -v 2>&1 | tee out-`date "+%Y.%m.%d-%H:%M:%S"`.log
+
 clean:
 	rm -f $(LIBOBJECTS) $(BINOBJECTS) $(BINDIR)/$(CMDTOOL) $(LIBDIR)/$(LIBFILE)

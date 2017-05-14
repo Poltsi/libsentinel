@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
         disconnect_sentinel(fd);
 
         if (header_list != NULL)
-            free(header_list);
+            free_sentinel_header_list(header_list);
     }
 
     printf("This is a shared library test...\n");

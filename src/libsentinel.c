@@ -127,7 +127,7 @@ bool send_sentinel_command(int fd, const void* command, size_t size) {
     size_t nbytes = 0;
     char* buf = calloc(size + 1, sizeof(char));
     // memset(buf, 0, size + 1);
-    buf = strncpy(buf, command, size);
+    strncpy(buf, command, size);
     printf ("Writing byte: '%s' (%lu)\n", buf, size);
 
     while (nbytes < size) {
@@ -154,6 +154,9 @@ bool read_sentinel_header_list(int fd, char** buffer) {
     const unsigned char expected[3] = {0x64, 0x0D, 0x0A};
     unsigned char header[3] = {0,0,0};
     char buf[1] ={0};
+
+    // Initialize the buffer
+    *buffer = calloc(1, sizeof(char*));
 
     int i = 0;
     int n = 0;
@@ -184,28 +187,13 @@ bool read_sentinel_header_list(int fd, char** buffer) {
 
     while (memcmp(dend, buf, sizeof(dend)) != 0) {
         n = read(fd, buf, sizeof(buf));
-        char* tmp = realloc(*buffer, strlen(*buffer) + 2);
 
-        if (tmp != NULL) {
-            *buffer = tmp;
-            printf("%s: Reallocated to: (%d)\n", __func__, (int) strlen(*buffer));
-        } else {
-            printf("%s: Failed to reallocate buffer\n", __func__);
-            return(false);
-        }
+        *buffer = resize_string(*buffer, strlen(*buffer) + 1);
+        if (*buffer == NULL) return(false);
 
-        tmp = strncat(*buffer, buf, 1);
+        strncpy(*buffer + i, buf, 1);
+        if (*buffer == NULL) return(false);
 
-        if (tmp != NULL) {
-            *buffer = tmp;
-            printf("%s: Concatenated to: (%d)\n", __func__, (int) strlen(*buffer));
-        } else {
-            printf("%s: Failed to concatenate buffer\n", __func__);
-            return(false);
-        }
-
-        // *buffer = realloc(*buffer, (i + 1));
-        // strncpy((*buffer + i), buf, 1);
         sentinel_sleep(100);
         i++;
     }
@@ -292,8 +280,8 @@ bool download_sentinel_header(int fd, char** buffer) {
  *                        struct from the given string buffer
  **/
 
-bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
-    int buffer_size = strlen(buffer);
+bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
+    int buffer_size = strlen(*buffer);
     dprint(true, "Parsable buffer size: %d\n", buffer_size);
     char** h_lines = str_cut(buffer, "\r\n"); /* Cut it by lines */
 
@@ -307,7 +295,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
     while(h_lines[line_idx] != NULL) {
         printf("Inspecting line: '%s'\n", h_lines[line_idx]);
         if (strncmp(h_lines[line_idx], "ver=", 4) == 0) {
-            header_struct->version = calloc((strlen(h_lines[line_idx]) - 4), sizeof(char));
+            // header_struct->version = resize_string(header_struct->version, strlen(h_lines[line_idx]) - 4);
+
+            header_struct->version = calloc((strlen(h_lines[line_idx]) - 3), sizeof(char));
             strncpy(header_struct->version, (h_lines[line_idx] + 4), (strlen(h_lines[line_idx]) - 4));
             printf("Found the version: '%s'\n", header_struct->version);
             line_idx++;
@@ -327,7 +317,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "Mem ", 4) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -341,10 +331,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
 
-        printf("Maybe it is a time start-field?\n");
         if (strncmp(h_lines[line_idx], "Start ", 6) == 0) {
             printf("It is a time start-field! Let's split it up by spaces\n");
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -361,7 +350,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "Finish ", 7) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -376,7 +365,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "MaxD ", 5) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -390,7 +379,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "Status ", 7) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -404,7 +393,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "OTU ", 4) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -418,7 +407,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "DAtmos ", 7) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -432,7 +421,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "DStack ", 7) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -446,7 +435,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "DUsage ", 7) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -460,7 +449,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "DCNS ", 5) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -474,7 +463,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "DSafety ", 8) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -488,7 +477,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "Dexpert, ", 9) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -502,7 +491,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "Dtpm, ", 6) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -516,7 +505,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "DDecoAlg ", 9) == 0) {
-            char** fields = str_cut(h_lines[line_idx], " ");
+            char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -555,7 +544,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "Dcellhealth ", 12) == 0) {
-            char** fields = str_cut((h_lines[line_idx] + 12), ", ");
+            char* tmp_ptr = h_lines[line_idx] + 12;
+            printf("%s: Looks like we found the health data for cell: %s\n", __func__, tmp_ptr);
+            char** fields = str_cut(&tmp_ptr, ", ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -570,7 +561,8 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "Gas ", 4) == 0) {
-            char** fields = str_cut((h_lines[line_idx] + 4), ", ");
+            char* tmp_ptr = h_lines[line_idx] + 4;
+            char** fields = str_cut(&tmp_ptr, ", ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -590,7 +582,8 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "Tissue ", 7) == 0) {
-            char** fields = str_cut((h_lines[line_idx] + 7), ", ");
+            char* tmp_ptr = h_lines[line_idx] + 7;
+            char** fields = str_cut(&tmp_ptr, ", ");
 
             if (fields == NULL) {
                 printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
@@ -612,6 +605,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
     }
 
     header_struct->log = NULL;
+
+    free_string_array(h_lines);
+
     return(true);
 }
 
@@ -622,7 +618,7 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer) {
 bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr) {
     int buffer_size = strlen(linestr);
     dprint(true, "Line length: %d\n", buffer_size);
-    char** log_field = str_cut(linestr, ","); /* Cut it by comma */
+    char** log_field = str_cut(&linestr, ","); /* Cut it by comma */
 
     if (log_field == NULL) {
         printf("ERROR: Received empty split list from: '%s'\n", linestr);
@@ -656,7 +652,16 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
     int note_idx = 0;
 
     while (strncmp(log_field[field_idx], "S", 1) != 0) {
-        line->note = realloc(line->note, (note_idx + 1) * sizeof(sentinel_note_t));
+        sentinel_note_t** tmp = realloc(line->note, (note_idx + 1) * sizeof(sentinel_note_t));
+
+        if (tmp != NULL) {
+            line->note = tmp;
+            // printf("%s: Reallocated to: (%d)\n", __func__, (int) strlen(*buffer));
+        } else {
+            printf("%s: Failed to reallocate buffer\n", __func__);
+            return(false);
+        }
+        // line->note = realloc(line->note, (note_idx + 1) * sizeof(sentinel_note_t));
         get_sentinel_note(log_field[field_idx], line->note[note_idx]);
         note_idx++;
         field_idx++;
@@ -672,6 +677,8 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
     line->tempstick_value[7]  = atoi(log_field[field_idx++] + 1) / 10.0;
     line->co2                 = atoi(log_field[field_idx + 2] + 1);
 
+    free_string_array(log_field);
+
     return(true);
 }
 
@@ -681,13 +688,13 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
 
 bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
     /* Create and minimal allocation of the buffer */
-    char* buffer = calloc(1, sizeof(char));
-    if (!download_sentinel_header(fd, &buffer)) {
+    char** buffer = malloc(sizeof(char*));
+    if (!download_sentinel_header(fd, buffer)) {
         printf("ERROR: Failed to get the Sentinel header\n");
         return(false);
     }
 
-    printf("%s: Received buffer length: %lu\n", __func__, strlen(buffer));
+    printf("%s: Received buffer length: %lu\n", __func__, strlen(*buffer));
 
     char** head_array = str_cut(buffer, "d\r\n");
 
@@ -695,7 +702,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
     free(buffer);
 
     if (head_array == NULL) {
-        printf("ERROR: Received empty head array from: '%s'\n", buffer);
+        printf("ERROR: Received empty head array from: '%s'\n", *buffer);
         return(false);
     }
 
@@ -703,11 +710,19 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
 
     while (head_array[header_idx] != NULL) {
         printf("Allocating memory for header pointer (%d)\n", header_idx);
-        header_list = realloc(header_list, (header_idx + 1) * sizeof(char*));
+
+        sentinel_header_t** tmp = realloc(header_list, (header_idx + 1) * sizeof(sentinel_header_t*));
+
+        if (tmp == NULL) {
+            printf("%s: Failed to reallocate header_list\n", __func__);
+            return(false);
+        }
+
         printf("Allocating memory for header struct (%d)\n", header_idx);
+        // header_list[header_idx] = alloc_sentinel_header();
         header_list[header_idx] = malloc(sizeof(sentinel_header_t));
 
-        if (!parse_sentinel_header(header_list[header_idx], head_array[header_idx])) {
+        if (!parse_sentinel_header(header_list[header_idx], &head_array[header_idx])) {
             printf("ERROR: Failed parse the Sentinel header\n");
             return(false);
         }
@@ -717,8 +732,55 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
 
     /* Again, the last in the array is null so that we know when the array ends */
     header_list[header_idx] = NULL;
+    free_string_array(head_array);
     /* TODO: Invert the list as it is now from the newest to the oldest */
     return(true);
+}
+
+/**
+ * alloc_sentinel_header: Returns an allocated memory structure for header struct.
+ *                      This will not allocate the member values
+ **/
+
+sentinel_header_t* alloc_sentinel_header(void) {
+    sentinel_header_t *tmp = malloc(sizeof(sentinel_header_t));
+
+    if (tmp == NULL)
+        return(NULL);
+
+    return(tmp);
+}
+
+/**
+ * free_sentinel_header: Frees the memory of a given header struct. This will free
+ *                      all the dynamically assigned member values too
+ **/
+
+void free_sentinel_header(sentinel_header_t* header) {
+    // Can safely assume vector is NULL or fully built.
+
+    if (header != NULL) {
+        free(header->version);
+        free(header->serial_number);
+        free(header->start_time);
+        free(header->end_time);
+        free(header->decoalg);
+        free(header->log);
+        free(header);
+    }
+}
+
+/**
+ * free_sentinel_header_list: Goes through the given header list and frees each item
+ *                           separately
+ **/
+
+void free_sentinel_header_list(sentinel_header_t** h_list) {
+    int i = 0;
+
+    while (h_list[i] != NULL) {
+        free_sentinel_header(h_list[i]);
+    }
 }
 
 /**
@@ -791,28 +853,29 @@ bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
  *
  **/
 
-char** str_cut(char* orig_string, const char* delim) {
+char** str_cut(char** orig_string, const char* delim) {
     if (orig_string == NULL) {
-        printf("Original string is null, return null\n");
+        printf("%s: Original string is null, return null\n", __func__);
         return(NULL);
     }
 
     if (delim == NULL || delim == 0) {
-        printf("Delimiter is null, return null\n");
+        printf("%s: Delimiter is null, return null\n", __func__);
         /* TODO: Should this actually return an array with each char is separated? */
         return(NULL);
     }
+
     char** str_array  = NULL; /* We store the splits here */
     int arr_idx = 0; /* Our index counter for str_array */
-    char* start_ptr   = orig_string;
-    char* end_ptr     = orig_string;
+    char* start_ptr   = *orig_string;
+    char* end_ptr     = *orig_string;
     const int win_len = strlen(delim); /* This is our moving window length */
-    const long orig_len = strlen(orig_string);
+    const long orig_len = strlen(*orig_string);
 
     if (delim == 0)
-        printf("Will split the buffer (%ld) with delimitator (%d) \\0\n", orig_len, win_len);
+        printf("%s: Will split the buffer (%ld) with delimitator (%d) \\0\n", __func__, orig_len, win_len);
     else
-        printf("Will split the buffer (%ld) with delimitator (%d): %s\n", orig_len, win_len, delim);
+        printf("%s: Will split the buffer (%ld) with delimitator (%d): '%s'\n", __func__, orig_len, win_len, delim);
     /* We move the end_ptr one char at a time forward, and at each step we compare
      * whether the next win_len chars are equal to the delim. If this is the case,
      * then we know that the string between start and end ptr is to be stored in our
@@ -820,35 +883,155 @@ char** str_cut(char* orig_string, const char* delim) {
      * we come across a delim while start and end ptr are equal, we skip since this
      * is an empty string. The last item in the array is a 0 so we know that this is
      * where it ends */
+    printf("%s: Start pointer: '%s'\n", __func__, start_ptr);
 
-    while ((end_ptr - orig_string) <= (orig_len - win_len)) {
-        if (strncmp((end_ptr + 1), delim, win_len) == 0) {
+    // while ((end_ptr - *orig_string) <= (orig_len - win_len)) {
+    while (end_ptr < *orig_string + orig_len) {
+        printf("%s: ======================\n", __func__);
+
+        if (strncmp(end_ptr, delim, win_len) == 0) {
+            printf("%s: Our end points at the delimiter '%s': %s\n", __func__, delim, end_ptr);
+            printf("%s: Start pointer: '%s'\n", __func__, start_ptr);
+
             if (start_ptr < end_ptr) {
-                str_array = realloc(str_array, (arr_idx + 1) * sizeof(char*));
-                str_array[arr_idx] = calloc((end_ptr - start_ptr + 1), sizeof(char));
-                strncpy(str_array[arr_idx], start_ptr, (end_ptr + 1 - start_ptr));
+                printf("%s: start is smaller than end\n", __func__);
+                str_array = resize_string_array(str_array, arr_idx + 1);
+
+                if (str_array == NULL) return(NULL);
+
+                int tmp_len = end_ptr - start_ptr;
+
+                str_array[arr_idx] = resize_string(str_array[arr_idx], tmp_len);
+                strncpy(str_array[arr_idx], start_ptr, tmp_len);
+                printf("%s: Copied string to str_array[%d]: %s\n", __func__, arr_idx, str_array[arr_idx]);
                 arr_idx++;
             } /* Else we skip adding to the str_array as the string length is 0 */
 
-            end_ptr += win_len + 1; /* Jump over the delimiter string */
+            end_ptr += win_len; /* Jump over the delimiter string */
             start_ptr = end_ptr;
         } else {
+            printf("%s: Move end pointer forward: %s\n", __func__, end_ptr);
             end_ptr++;
         }
     }
 
     /* We may have a residue string which needs to be stored */
     if (start_ptr < end_ptr) {
-        str_array = realloc(str_array, (arr_idx + 1) * sizeof(char*));
-        str_array[arr_idx] = calloc((end_ptr + win_len + 1 - start_ptr), sizeof(char));
-        strncpy(str_array[arr_idx], start_ptr, (end_ptr + win_len - start_ptr));
+        printf("%s: We have a residue string: %s\n", __func__, start_ptr);
+        str_array = resize_string_array(str_array, arr_idx + 1);
+        if (str_array == NULL) return(NULL);
+        int tmp_len = end_ptr + 1 - start_ptr;
+        printf("%s: Resize the residue string to (%d)\n", __func__, tmp_len);
+        str_array[arr_idx] = resize_string(str_array[arr_idx], tmp_len);
+        if (str_array[arr_idx] == NULL) return(NULL);
+        strncpy(str_array[arr_idx], start_ptr, tmp_len);
         arr_idx++;
     }
 
-    str_array = realloc(str_array, (arr_idx) * sizeof(char*));
-    str_array[arr_idx] = malloc(sizeof(char));
-    str_array[arr_idx] = '\0';
+    int i = 0;
+    while (str_array[i] != NULL) {
+        printf("%s: str_array[%d]: '%s'\n", __func__, i, str_array[i]);
+        i++;
+    }
+
     return(str_array);
+}
+
+/**
+ * resize_string: Takes in a string, and resizes it to the given string length. This
+ *                means that the actual lenght is +1 as it includes the terminating
+ *                null. If the new string is longer, then it pads the end with
+ *                null(s), if shorter, then the last character will be replaced with
+ *                a null. Returns the new string back
+ **/
+
+char* resize_string(char* old_str, int string_length) {
+    char* new_str = calloc(string_length + 1, sizeof(char));
+
+    if (new_str == NULL) {
+        printf("%s: ERROR: Unable to calloc string, return null\n", __func__);
+        return(NULL);
+    }
+
+    if (old_str == NULL) {
+        printf("%s: the old string is null, return a nulled string\n", __func__);
+        return(new_str);
+    }
+
+    char* tmp = strncpy(new_str, old_str, strlen(old_str));
+
+    if (tmp == NULL)
+        return(NULL);
+
+    free(old_str);
+
+    return(new_str);
+}
+
+/**
+ * resize_string_array: Similar to resize_string except that it operates on arrays of
+ *                      char-pointers, maintaining always a nullpointer as the last
+ *                      item
+ **/
+
+char** resize_string_array(char** old_arr, int arr_size) {
+    char** new_arr = calloc(arr_size + 1, sizeof(char**));
+    printf("%s: Requested to resize array to %d\n", __func__, arr_size);
+    printf("%s: Calloced an array with %d items\n", __func__, arr_size + 1);
+
+    if (old_arr == NULL && arr_size > 0) {
+        printf("%s: the old array is null, return an array pointing to %d null strings\n", __func__, arr_size);
+        int i = 0;
+
+        for (i = 0; i < arr_size; i++) {
+            new_arr[i] = calloc(1, sizeof(char));
+        }
+
+        return(new_arr);
+    }
+
+    if (arr_size == 0) {
+        new_arr[0] = NULL;
+        if (old_arr != NULL) free(old_arr);
+        printf("%s: the given array size is 0, return an empty array (ie. only has the null\n", __func__);
+        return(new_arr);
+    }
+
+    int i = 0;
+
+    printf("%s: Go through the old array and copy the data to the new array\n", __func__);
+    /* TODO: There is a flaw here as there may be a null pointer in the middle of the array.
+     *       Maybe next consider storing these values in a linked list instead? */
+
+    while (old_arr[i] != NULL) {
+        printf("%s: Old string[%d]: %s\n", __func__, i, old_arr[i]);
+        new_arr[i] = calloc(strlen(old_arr[i]) + 1, sizeof(char));
+        strncpy(new_arr[i], old_arr[i], strlen(old_arr[i]));
+        free(old_arr[i]);
+        i++;
+    }
+
+    new_arr[i] = NULL;
+    free(old_arr);
+
+    return(new_arr);
+}
+
+/**
+ * free_string_array: Free up the memory reserved in the dynamically allocated array of strings
+ **/
+
+void free_string_array(char** str_arr) {
+    int i = 0;
+
+    if (str_arr == NULL) return;
+
+    while (str_arr[i] != NULL) {
+        free(str_arr[i]);
+        i++;
+    }
+
+    free(str_arr);
 }
 
 /**

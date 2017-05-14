@@ -87,7 +87,7 @@ typedef struct sentinel_dive_header {
     double vgm_stop_safety; /* Unknown */
     double vgm_mid_safety; /* Unknown */
     int filter_type;  /* Unknown */
-    int cell_health[3]; /* Cell health for cell 1, 2 and 3*/
+    int cell_health[3]; /* Cell health for cell 1, 2 and 3 */
     sentinel_gas_t gas[10]; /* Configured gasses */
     sentinel_tissue_t tissue[16]; /* Not yet clear what these are */
     sentinel_dive_log_line_t** log; /* Allocate this based on the log_lines */
@@ -102,14 +102,20 @@ extern bool read_sentinel_header_list(int fd, char** buffer);
 extern bool read_sentinel_data(int fd, char** buffer);
 extern bool disconnect_sentinel(int fd);
 extern bool download_sentinel_header(int fd, char** buffer);
-extern bool parse_sentinel_header(sentinel_header_t* header_struct, char* buffer);
+extern bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer);
 extern bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list);
 extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr);
 extern bool get_sentinel_note(char* note_str, sentinel_note_t* note);
+extern sentinel_header_t* alloc_sentinel_header(void);
+extern void free_sentinel_header(sentinel_header_t* header);
+extern void free_sentinel_header_list(sentinel_header_t** h_list);
 /* Internal functions */
-char** str_cut(char* orig_string, const char* delim);
+char** str_cut(char** orig_string, const char* delim);
 int sentinel_to_unix_timestamp(int sentinel_time);
 char* sentinel_to_utc_datestring(const int sentinel_time);
 char* seconds_to_hms(const int seconds);
 void sentinel_sleep(const int msecs);
+char* resize_string(char* old_str, int len);
+char** resize_string_array(char** old_arr, int len);
+void free_string_array(char** str_arr);
 #endif  // LIBSENTINEL_H

@@ -90,6 +90,7 @@ int main(int argc, char **argv) {
     }
 
     dprint(verbose, "Testing whether we can get the type of device: %s\n", device_name);
+
     if ((sb.st_mode & S_IFMT) != S_IFCHR) {
         printf("ERROR: Either device '%s' does not exist or it is not a character device, aborting\n", device_name);
         print_help();
@@ -111,17 +112,27 @@ int main(int argc, char **argv) {
     }
 
     printf("Connected to: %s\n", device_name);
+    free(device_name);
 
     if (list_dives) {
         dprint(verbose, "Printing the list of dives\n");
         sentinel_header_t **header_list = NULL;
-        get_sentinel_dive_list(fd, header_list);
+        bool res = get_sentinel_dive_list(fd, header_list);
         disconnect_sentinel(fd);
 
-        if (header_list != NULL)
-            free_sentinel_header_list(header_list);
+        if (res && (header_list != NULL)) {
+            int i = 0;
+
+            while (header_list[i] != NULL) {
+                printf("%s: # %d #####################################################################3", __func__, i);
+                print_sentinel_header(header_list[i]);
+                i++;
+            }
+        }
+
+        if (header_list != NULL) free_sentinel_header_list(header_list);
     }
 
-    printf("This is a shared library test...\n");
+    printf("%s: Task completed\n", __func__);
     return(0);
 }

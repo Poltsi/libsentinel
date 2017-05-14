@@ -93,6 +93,37 @@ typedef struct sentinel_dive_header {
     sentinel_dive_log_line_t** log; /* Allocate this based on the log_lines */
 } sentinel_header_t;
 
+
+const sentinel_header_t DEFAULT_HEADER = {
+    NULL,
+    0,
+    NULL,
+    0,
+    0,
+    0,
+    NULL,
+    NULL,
+    0.0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.0,
+    0.0,
+    0,
+    0,
+    NULL,
+    0.0,
+    0.0,
+    0.0,
+    0,
+    {0,0,0},
+    {{0,0,0,0.0,0},{0,0,0,0.0,0},{0,0,0,0.0,0},{0,0,0,0.0,0},{0,0,0,0.0,0},{0,0,0,0.0,0},{0,0,0,0.0,0},{0,0,0,0.0,0},{0,0,0,0.0,0},{0,0,0,0.0,0}},
+    {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0},{0,0}},
+    NULL
+};
+
 /* External functions */
 extern int connect_sentinel(char* devicex);
 extern int open_sentinel_device(char* device);
@@ -102,13 +133,15 @@ extern bool read_sentinel_header_list(int fd, char** buffer);
 extern bool read_sentinel_data(int fd, char** buffer);
 extern bool disconnect_sentinel(int fd);
 extern bool download_sentinel_header(int fd, char** buffer);
-extern bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer);
+extern bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer);
 extern bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list);
 extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr);
 extern bool get_sentinel_note(char* note_str, sentinel_note_t* note);
 extern sentinel_header_t* alloc_sentinel_header(void);
+extern sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_list, int list_size);
 extern void free_sentinel_header(sentinel_header_t* header);
 extern void free_sentinel_header_list(sentinel_header_t** h_list);
+extern void print_sentinel_header(sentinel_header_t* header);
 /* Internal functions */
 char** str_cut(char** orig_string, const char* delim);
 int sentinel_to_unix_timestamp(int sentinel_time);

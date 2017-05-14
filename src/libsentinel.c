@@ -142,6 +142,7 @@ bool send_sentinel_command(int fd, const void* command, size_t size) {
     }
 
     printf ("Write succeed\n");
+    free(buf);
     return(true);
 }
 
@@ -276,11 +277,11 @@ bool download_sentinel_header(int fd, char** buffer) {
 }
 
 /**
- * parse_sentinel_header: Parse a single dive header to the dive header
+ * parse_sentinel_header: Parse a single dive header to the given dive header
  *                        struct from the given string buffer
  **/
 
-bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
+bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
     int buffer_size = strlen(*buffer);
     dprint(true, "Parsable buffer size: %d\n", buffer_size);
     char** h_lines = str_cut(buffer, "\r\n"); /* Cut it by lines */
@@ -290,6 +291,8 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
         return(false);
     }
 
+    // First we set the default values
+    **header_struct = DEFAULT_HEADER;
     int line_idx = 0;
 
     while(h_lines[line_idx] != NULL) {
@@ -297,22 +300,22 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
         if (strncmp(h_lines[line_idx], "ver=", 4) == 0) {
             // header_struct->version = resize_string(header_struct->version, strlen(h_lines[line_idx]) - 4);
 
-            header_struct->version = calloc((strlen(h_lines[line_idx]) - 3), sizeof(char));
-            strncpy(header_struct->version, (h_lines[line_idx] + 4), (strlen(h_lines[line_idx]) - 4));
-            printf("Found the version: '%s'\n", header_struct->version);
+            (*header_struct)->version = calloc((strlen(h_lines[line_idx]) - 3), sizeof(char));
+            strncpy((*header_struct)->version, (h_lines[line_idx] + 4), (strlen(h_lines[line_idx]) - 4));
+            printf("Found the version: '%s'\n", (*header_struct)->version);
             line_idx++;
             continue;
         }
         if (strncmp(h_lines[line_idx], "Recint=", 7) == 0) {
-            header_struct->record_interval = atoi(h_lines[line_idx] + 7);
-            printf("Found the recording interval: '%d'\n", header_struct->record_interval);
+            (*header_struct)->record_interval = atoi(h_lines[line_idx] + 7);
+            printf("Found the recording interval: '%d'\n", (*header_struct)->record_interval);
             line_idx++;
             continue;
         }
         if (strncmp(h_lines[line_idx], "SN=", 3) == 0) {
-            header_struct->serial_number = calloc((strlen(h_lines[line_idx]) - 3), sizeof(char));
-            strncpy(header_struct->serial_number, (h_lines[line_idx] + 3), (strlen(h_lines[line_idx]) - 4));
-            printf("Found the serial number: '%s'\n", header_struct->serial_number);
+            (*header_struct)->serial_number = calloc((strlen(h_lines[line_idx]) - 3), sizeof(char));
+            strncpy((*header_struct)->serial_number, (h_lines[line_idx] + 3), (strlen(h_lines[line_idx]) - 4));
+            printf("Found the serial number: '%s'\n", (*header_struct)->serial_number);
             line_idx++;
             continue;
         }
@@ -324,9 +327,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->log_lines = atoi(fields[3]);
-            free(fields);
-            printf("Found the number of log lines: '%d'\n", header_struct->log_lines);
+            (*header_struct)->log_lines = atoi(fields[3]);
+            free_string_array(fields);
+            printf("Found the number of log lines: '%d'\n", (*header_struct)->log_lines);
             line_idx++;
             continue;
         }
@@ -341,11 +344,11 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
             }
 
             printf("Create unix timestamp of: '%s'\n", fields[2]);
-            header_struct->start_s = sentinel_to_unix_timestamp(atoi(fields[2]));
+            (*header_struct)->start_s = sentinel_to_unix_timestamp(atoi(fields[2]));
             printf("Create datetime\n");
-            header_struct->start_time = sentinel_to_utc_datestring(atoi(fields[2]));
-            free(fields);
-            printf("Found the start timestamp: %d = '%s'\n", header_struct->start_s, header_struct->start_time);
+            (*header_struct)->start_time = sentinel_to_utc_datestring(atoi(fields[2]));
+            free_string_array(fields);
+            printf("Found the start timestamp: %d = '%s'\n", (*header_struct)->start_s, (*header_struct)->start_time);
             line_idx++;
             continue;
         }
@@ -357,10 +360,10 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->end_s = sentinel_to_unix_timestamp(atoi(fields[2]));
-            header_struct->end_time = sentinel_to_utc_datestring(atoi(fields[2]));
-            free(fields);
-            printf("Found the end timestamp: %d = '%s'\n", header_struct->end_s, header_struct->end_time);
+            (*header_struct)->end_s = sentinel_to_unix_timestamp(atoi(fields[2]));
+            (*header_struct)->end_time = sentinel_to_utc_datestring(atoi(fields[2]));
+            free_string_array(fields);
+            printf("Found the end timestamp: %d = '%s'\n", (*header_struct)->end_s, (*header_struct)->end_time);
             line_idx++;
             continue;
         }
@@ -372,9 +375,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->max_depth = atof(fields[2]);
-            free(fields);
-            printf("Found the max depth: %f\n", header_struct->max_depth);
+            (*header_struct)->max_depth = atof(fields[2]);
+            free_string_array(fields);
+            printf("Found the max depth: %f\n", (*header_struct)->max_depth);
             line_idx++;
             continue;
         }
@@ -386,9 +389,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->status = atoi(fields[2]);
-            free(fields);
-            printf("Found the status: '%d'\n", header_struct->status);
+            (*header_struct)->status = atoi(fields[2]);
+            free_string_array(fields);
+            printf("Found the status: '%d'\n", (*header_struct)->status);
             line_idx++;
             continue;
         }
@@ -400,9 +403,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->otu = atoi(fields[2]);
-            free(fields);
-            printf("Found the OTU: '%d'\n", header_struct->otu);
+            (*header_struct)->otu = atoi(fields[2]);
+            free_string_array(fields);
+            printf("Found the OTU: '%d'\n", (*header_struct)->otu);
             line_idx++;
             continue;
         }
@@ -414,9 +417,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->atm = atoi(fields[2]);
-            free(fields);
-            printf("Found the atmospheric pressure (mbar): '%d'\n", header_struct->atm);
+            (*header_struct)->atm = atoi(fields[2]);
+            free_string_array(fields);
+            printf("Found the atmospheric pressure (mbar): '%d'\n", (*header_struct)->atm);
             line_idx++;
             continue;
         }
@@ -428,9 +431,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->stack = atoi(fields[2]);
-            free(fields);
-            printf("Found the stack: '%d'\n", header_struct->stack);
+            (*header_struct)->stack = atoi(fields[2]);
+            free_string_array(fields);
+            printf("Found the stack: '%d'\n", (*header_struct)->stack);
             line_idx++;
             continue;
         }
@@ -442,9 +445,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->usage = atoi(fields[2]);
-            free(fields);
-            printf("Found the usage: '%d'\n", header_struct->usage);
+            (*header_struct)->usage = atoi(fields[2]);
+            free_string_array(fields);
+            printf("Found the usage: '%d'\n", (*header_struct)->usage);
             line_idx++;
             continue;
         }
@@ -456,9 +459,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->cns = atof(fields[2]);
-            free(fields);
-            printf("Found the CNS: %f\n", header_struct->cns);
+            (*header_struct)->cns = atof(fields[2]);
+            free_string_array(fields);
+            printf("Found the CNS: %f\n", (*header_struct)->cns);
             line_idx++;
             continue;
         }
@@ -470,9 +473,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->safety = atof(fields[2]);
-            free(fields);
-            printf("Found the safety: %f\n", header_struct->safety);
+            (*header_struct)->safety = atof(fields[2]);
+            free_string_array(fields);
+            printf("Found the safety: %f\n", (*header_struct)->safety);
             line_idx++;
             continue;
         }
@@ -484,9 +487,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->expert = atoi(fields[1]);
-            free(fields);
-            printf("Found the expert: '%d'\n", header_struct->expert);
+            (*header_struct)->expert = atoi(fields[1]);
+            free_string_array(fields);
+            printf("Found the expert: '%d'\n", (*header_struct)->expert);
             line_idx++;
             continue;
         }
@@ -498,9 +501,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->tpm = atoi(fields[1]);
-            free(fields);
-            printf("Found the TPM: '%d'\n", header_struct->tpm);
+            (*header_struct)->tpm = atoi(fields[1]);
+            free_string_array(fields);
+            printf("Found the TPM: '%d'\n", (*header_struct)->tpm);
             line_idx++;
             continue;
         }
@@ -512,34 +515,34 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
                 return(false);
             }
 
-            header_struct->decoalg = calloc((strlen(fields[1]) + 1), sizeof(char));
-            strncpy(header_struct->decoalg, fields[1], strlen(fields[1]));
-            free(fields);
-            printf("Found the decompression algorithm: '%s'\n", header_struct->decoalg);
+            (*header_struct)->decoalg = calloc((strlen(fields[1]) + 1), sizeof(char));
+            strncpy((*header_struct)->decoalg, fields[1], strlen(fields[1]));
+            free_string_array(fields);
+            printf("Found the decompression algorithm: '%s'\n", (*header_struct)->decoalg);
             line_idx++;
             continue;
         }
         if (strncmp(h_lines[line_idx], "DVGMMaxDSafety ", 15) == 0) {
-            header_struct->vgm_max_safety = atof(h_lines[line_idx] + 15);
-            printf("Found the VGM max safety: %f\n", header_struct->vgm_max_safety);
+            (*header_struct)->vgm_max_safety = atof(h_lines[line_idx] + 15);
+            printf("Found the VGM max safety: %f\n", (*header_struct)->vgm_max_safety);
             line_idx++;
             continue;
         }
         if (strncmp(h_lines[line_idx], "DVGMStopSafety ", 15) == 0) {
-            header_struct->vgm_stop_safety = atof(h_lines[line_idx] + 15);
-            printf("Found the VGM stop safety: %f\n", header_struct->vgm_stop_safety);
+            (*header_struct)->vgm_stop_safety = atof(h_lines[line_idx] + 15);
+            printf("Found the VGM stop safety: %f\n", (*header_struct)->vgm_stop_safety);
             line_idx++;
             continue;
         }
         if (strncmp(h_lines[line_idx], "DVGMMidSafety ", 14) == 0) {
-            header_struct->vgm_mid_safety = atof(h_lines[line_idx] + 14);
-            printf("Found the VGM mid safety: %f\n", header_struct->vgm_mid_safety);
+            (*header_struct)->vgm_mid_safety = atof(h_lines[line_idx] + 14);
+            printf("Found the VGM mid safety: %f\n", (*header_struct)->vgm_mid_safety);
             line_idx++;
             continue;
         }
         if (strncmp(h_lines[line_idx], "Dfiltertype, ", 13) == 0) {
-            header_struct->filter_type = atoi(h_lines[line_idx] + 13);
-            printf("Found the filter type: '%d'\n", header_struct->filter_type);
+            (*header_struct)->filter_type = atoi(h_lines[line_idx] + 13);
+            printf("Found the filter type: '%d'\n", (*header_struct)->filter_type);
             line_idx++;
             continue;
         }
@@ -554,9 +557,9 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
             }
 
             int cell_idx = atoi(fields[0]) - 1;
-            header_struct->cell_health[cell_idx] = atoi(fields[1]);
-            free(fields);
-            printf("Found the cell health for cell# %d: %d \n", cell_idx, header_struct->cell_health[cell_idx]);
+            (*header_struct)->cell_health[cell_idx] = atoi(fields[1]);
+            free_string_array(fields);
+            printf("Found the cell health for cell# %d: %d \n", cell_idx, (*header_struct)->cell_health[cell_idx]);
             line_idx++;
             continue;
         }
@@ -570,14 +573,14 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
             }
 
             int gas_idx = atoi(fields[0]) - 4010;
-            header_struct->gas[gas_idx].n2 = atoi(fields[1]);
-            header_struct->gas[gas_idx].he = atoi(fields[2]);
-            header_struct->gas[gas_idx].o2 = 100 - header_struct->gas[gas_idx].n2 - header_struct->gas[gas_idx].he;
-            header_struct->gas[gas_idx].max_depth = atoi(fields[3]);
-            header_struct->gas[gas_idx].enabled = atoi(fields[4]);
-            free(fields);
+            (*header_struct)->gas[gas_idx].n2 = atoi(fields[1]);
+            (*header_struct)->gas[gas_idx].he = atoi(fields[2]);
+            (*header_struct)->gas[gas_idx].o2 = 100 - (*header_struct)->gas[gas_idx].n2 - (*header_struct)->gas[gas_idx].he;
+            (*header_struct)->gas[gas_idx].max_depth = atoi(fields[3]);
+            (*header_struct)->gas[gas_idx].enabled = atoi(fields[4]);
+            free_string_array(fields);
             printf("Found the gas setting for gas# %d: %d/%d \n", gas_idx,
-                   header_struct->gas[gas_idx].o2, header_struct->gas[gas_idx].he );
+                   (*header_struct)->gas[gas_idx].o2, (*header_struct)->gas[gas_idx].he );
             line_idx++;
             continue;
         }
@@ -591,11 +594,11 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
             }
 
             int tissue_idx = atoi(fields[0]) - 4020;
-            header_struct->tissue[tissue_idx].t1 = atoi(fields[1]);
-            header_struct->tissue[tissue_idx].t2 = atoi(fields[2]);
-            free(fields);
+            (*header_struct)->tissue[tissue_idx].t1 = atoi(fields[1]);
+            (*header_struct)->tissue[tissue_idx].t2 = atoi(fields[2]);
+            free_string_array(fields);
             printf("Found the tissue value for tissue_idx# %d: %d-%d \n", tissue_idx,
-                   header_struct->tissue[tissue_idx].t1, header_struct->tissue[tissue_idx].t2 );
+                   (*header_struct)->tissue[tissue_idx].t1, (*header_struct)->tissue[tissue_idx].t2 );
             line_idx++;
             continue;
         }
@@ -604,9 +607,10 @@ bool parse_sentinel_header(sentinel_header_t* header_struct, char** buffer) {
         line_idx++;
     }
 
-    header_struct->log = NULL;
+    (*header_struct)->log = NULL;
 
     free_string_array(h_lines);
+    print_sentinel_header(*header_struct);
 
     return(true);
 }
@@ -711,9 +715,9 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
     while (head_array[header_idx] != NULL) {
         printf("Allocating memory for header pointer (%d)\n", header_idx);
 
-        sentinel_header_t** tmp = realloc(header_list, (header_idx + 1) * sizeof(sentinel_header_t*));
+        header_list = resize_sentinel_header_list(header_list, header_idx + 1);
 
-        if (tmp == NULL) {
+        if (header_list == NULL) {
             printf("%s: Failed to reallocate header_list\n", __func__);
             return(false);
         }
@@ -722,16 +726,15 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
         // header_list[header_idx] = alloc_sentinel_header();
         header_list[header_idx] = malloc(sizeof(sentinel_header_t));
 
-        if (!parse_sentinel_header(header_list[header_idx], &head_array[header_idx])) {
-            printf("ERROR: Failed parse the Sentinel header\n");
+        if (!parse_sentinel_header(&header_list[header_idx], &head_array[header_idx])) {
+            printf("%s: ERROR: Failed parse the Sentinel header\n", __func__);
             return(false);
         }
 
+        printf("%s: New dive header struct populated, version: %s\n", __func__, header_list[header_idx]->version);
         header_idx++;
     }
 
-    /* Again, the last in the array is null so that we know when the array ends */
-    header_list[header_idx] = NULL;
     free_string_array(head_array);
     /* TODO: Invert the list as it is now from the newest to the oldest */
     return(true);
@@ -757,30 +760,119 @@ sentinel_header_t* alloc_sentinel_header(void) {
  **/
 
 void free_sentinel_header(sentinel_header_t* header) {
-    // Can safely assume vector is NULL or fully built.
-
     if (header != NULL) {
-        free(header->version);
-        free(header->serial_number);
-        free(header->start_time);
-        free(header->end_time);
-        free(header->decoalg);
-        free(header->log);
+        if (header->version       != NULL) free(header->version);
+        if (header->decoalg       != NULL) free(header->decoalg);
+        if (header->serial_number != NULL) free(header->serial_number);
+        if (header->start_time    != NULL) free(header->start_time);
+        if (header->end_time      != NULL) free(header->end_time);
+/*
+        if (header->log           != NULL) free(header->log);
+*/
         free(header);
     }
 }
 
 /**
- * free_sentinel_header_list: Goes through the given header list and frees each item
- *                           separately
+ * print_sentinel_header: Prints out to std the header data, one item per line
  **/
 
-void free_sentinel_header_list(sentinel_header_t** h_list) {
+void print_sentinel_header(sentinel_header_t* header) {
+    if (header != NULL) {
+        printf("version: %s\n", header->version);
+        printf("record_interval: %d\n", header->record_interval);
+        printf("serial_number: %s\n", header->serial_number);
+        printf("log_lines: %d\n", header->log_lines);
+        printf("start_s: %d\n", header->start_s);
+        printf("end_s: %d\n", header->end_s);
+        printf("start_time: %s\n", header->start_time);
+        printf("end_time: %s\n", header->end_time);
+        printf("max_depth: %.2lf\n", header->max_depth);
+        printf("status: %d\n", header->status);
+        printf("otu: %d\n", header->otu);
+        printf("atm: %d\n", header->atm);
+        printf("stack: %d\n", header->stack);
+        printf("usage: %d\n", header->usage);
+        printf("cns: %.2lf\n", header->cns);
+        printf("safety: %.2lf\n", header->safety);
+        printf("expert: %d\n", header->expert);
+        printf("tpm: %d\n", header->tpm);
+        printf("decoalg: %s\n", header->decoalg);
+        printf("vgm_max_safety: %.2lf\n", header->vgm_max_safety);
+        printf("vgm_stop_safety: %.2lf\n", header->vgm_stop_safety);
+        printf("vgm_mid_safety: %.2lf\n", header->vgm_mid_safety);
+        printf("filter_type: %d\n", header->filter_type);
+        int i = 0;
+        for (i = 0; i < 3; i++) {
+            printf("cell_health[%d]: %d\n", i, header->cell_health[i]);
+        }
+
+        for (i = 0; i < 10; i++) {
+            printf("gas[%2d]: N2: %2d He: %2d O2: %2d %3.2ld %d\n", i,
+                   header->gas[i].n2, header->gas[i].he, header->gas[i].o2,
+                   header->gas[i].max_depth, header->gas[i].enabled );
+        }
+
+        for (i = 0; i < 16; i++) {
+            printf("tissue[%d]: %3d %3d\n", i, header->tissue[i].t1, header->tissue[i].t2 );
+        }
+    }
+}
+
+/**
+ * resize_sentinel_header_list: Manages the resizing of an sentinel_header_t array
+ **/
+
+sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_list, int list_size) {
+    // Let's first get a count of the old list
     int i = 0;
 
-    while (h_list[i] != NULL) {
-        free_sentinel_header(h_list[i]);
+    int old_size = 0;
+    if (old_list != NULL) {
+        while (old_list[i] != NULL) {
+            i++;
+        }
+
+        old_size = i + 1;
     }
+
+    int new_size = list_size + 1;
+    printf("%s: Size of the old_list: %d\n", __func__, old_size);
+    printf("%s: Size of the new_list: %d\n", __func__, new_size);
+
+    sentinel_header_t** new_list = realloc(old_list, new_size * sizeof(sentinel_header_t*));
+
+    if (new_list == NULL) {
+        printf("%s: ERROR: Failed to reallocate header_list\n", __func__);
+        int j = 0;
+
+        while (old_list[j] != NULL) {
+            free(old_list[j]);
+        }
+
+        free(old_list);
+        return(NULL);
+    }
+
+    new_list[list_size] = NULL;
+
+    return(new_list);
+}
+
+/**
+ * free_sentinel_header_list: Goes through the given header list and frees each item
+ * c                          separately
+ **/
+
+void free_sentinel_header_list(sentinel_header_t** old_list) {
+    int i = 0;
+
+    while (old_list[i] != NULL) {
+        free(old_list[i]);
+        i++;
+    }
+
+    free(old_list);
 }
 
 /**
@@ -949,10 +1041,13 @@ char* resize_string(char* old_str, int string_length) {
 
     char* tmp = strncpy(new_str, old_str, strlen(old_str));
 
-    if (tmp == NULL)
-        return(NULL);
-
     free(old_str);
+
+    if (tmp == NULL) {
+        printf("%s: ERROR: Unable to strncpy the old string to the new\n", __func__);
+        free(new_str);
+        return(NULL);
+    }
 
     return(new_str);
 }

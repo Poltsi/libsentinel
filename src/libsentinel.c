@@ -883,18 +883,11 @@ char** str_cut(char** orig_string, const char* delim) {
      * we come across a delim while start and end ptr are equal, we skip since this
      * is an empty string. The last item in the array is a 0 so we know that this is
      * where it ends */
-    printf("%s: Start pointer: '%s'\n", __func__, start_ptr);
 
     // while ((end_ptr - *orig_string) <= (orig_len - win_len)) {
     while (end_ptr < *orig_string + orig_len) {
-        printf("%s: ======================\n", __func__);
-
         if (strncmp(end_ptr, delim, win_len) == 0) {
-            printf("%s: Our end points at the delimiter '%s': %s\n", __func__, delim, end_ptr);
-            printf("%s: Start pointer: '%s'\n", __func__, start_ptr);
-
             if (start_ptr < end_ptr) {
-                printf("%s: start is smaller than end\n", __func__);
                 str_array = resize_string_array(str_array, arr_idx + 1);
 
                 if (str_array == NULL) return(NULL);
@@ -903,25 +896,21 @@ char** str_cut(char** orig_string, const char* delim) {
 
                 str_array[arr_idx] = resize_string(str_array[arr_idx], tmp_len);
                 strncpy(str_array[arr_idx], start_ptr, tmp_len);
-                printf("%s: Copied string to str_array[%d]: %s\n", __func__, arr_idx, str_array[arr_idx]);
                 arr_idx++;
             } /* Else we skip adding to the str_array as the string length is 0 */
 
             end_ptr += win_len; /* Jump over the delimiter string */
             start_ptr = end_ptr;
         } else {
-            printf("%s: Move end pointer forward: %s\n", __func__, end_ptr);
             end_ptr++;
         }
     }
 
     /* We may have a residue string which needs to be stored */
     if (start_ptr < end_ptr) {
-        printf("%s: We have a residue string: %s\n", __func__, start_ptr);
         str_array = resize_string_array(str_array, arr_idx + 1);
         if (str_array == NULL) return(NULL);
         int tmp_len = end_ptr + 1 - start_ptr;
-        printf("%s: Resize the residue string to (%d)\n", __func__, tmp_len);
         str_array[arr_idx] = resize_string(str_array[arr_idx], tmp_len);
         if (str_array[arr_idx] == NULL) return(NULL);
         strncpy(str_array[arr_idx], start_ptr, tmp_len);

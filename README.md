@@ -20,4 +20,16 @@ In order to do development on the library, you most probably want to use the emu
 
 The emulator is a perl-script and is located in the mockup/sentinel_serial_emulator directory. There is a README file with more details on how to set up the emulator.
 
-Once you have the socat and emulator running, you can either ma
+Once you have the binary compiled, socat and emulator running, you can either manually contact the emulator with the command:
+
+```
+usr/local/bin/download -d /dev/pts/<pts id> -l
+```
+
+Currently only the header list command (-l) is enabled.
+
+Alternatively you can run the binary under valgrind with the Makefile target valgrind giving it the parameter PORT like so:
+
+```
+make valgrind PORT=/dev/pts/<pts id>
+```

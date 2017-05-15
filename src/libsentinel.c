@@ -343,7 +343,6 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             printf("Create unix timestamp of: '%s'\n", fields[2]);
             (*header_struct)->start_s = sentinel_to_unix_timestamp(atoi(fields[2]));
             printf("Create datetime\n");
-            // TODO: This is not working
             (*header_struct)->start_time = sentinel_to_utc_datestring(atoi(fields[2]));
             free_string_array(fields);
             printf("Found the start timestamp: %d = '%s'\n", (*header_struct)->start_s, (*header_struct)->start_time);
@@ -359,7 +358,6 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             }
 
             (*header_struct)->end_s = sentinel_to_unix_timestamp(atoi(fields[2]));
-            // TODO: This is not working
             (*header_struct)->end_time = sentinel_to_utc_datestring(atoi(fields[2]));
             free_string_array(fields);
             printf("Found the end timestamp: %d = '%s'\n", (*header_struct)->end_s, (*header_struct)->end_time);
@@ -966,10 +964,6 @@ char** str_cut(char** orig_string, const char* delim) {
     const int win_len = strlen(delim); /* This is our moving window length */
     const long orig_len = strlen(*orig_string);
 
-    if (delim == 0)
-        printf("%s: Will split the buffer (%ld) with delimitator (%d) \\0\n", __func__, orig_len, win_len);
-    else
-        printf("%s: Will split the buffer (%ld) with delimitator (%d): '%s'\n", __func__, orig_len, win_len, delim);
     /* We move the end_ptr one char at a time forward, and at each step we compare
      * whether the next win_len chars are equal to the delim. If this is the case,
      * then we know that the string between start and end ptr is to be stored in our
@@ -1031,7 +1025,6 @@ char* resize_string(char* old_str, int string_length) {
     }
 
     if (old_str == NULL) {
-        printf("%s: the old string is null, return a nulled string\n", __func__);
         return(new_str);
     }
 
@@ -1058,7 +1051,6 @@ char** resize_string_array(char** old_arr, int arr_size) {
     char** new_arr = calloc(arr_size + 1, sizeof(char**));
 
     if (old_arr == NULL && arr_size > 0) {
-        printf("%s: the old array is null, return an array pointing to %d null strings\n", __func__, arr_size);
         int i = 0;
 
         for (i = 0; i < arr_size; i++) {
@@ -1071,26 +1063,22 @@ char** resize_string_array(char** old_arr, int arr_size) {
     if (arr_size == 0) {
         new_arr[0] = NULL;
         if (old_arr != NULL) free(old_arr);
-        printf("%s: the given array size is 0, return an empty array (ie. only has the null\n", __func__);
         return(new_arr);
     }
 
     int i = 0;
 
-    printf("%s: Go through the old array and copy the data to the new array\n", __func__);
     /* TODO: There is a flaw here as there may be a null pointer in the middle of the array.
      *       Maybe next consider storing these values in a linked list instead? */
 
     while (old_arr[i] != NULL) {
-        printf("%s: Old string[%d]: %s\n", __func__, i, old_arr[i]);
         new_arr[i] = calloc(strlen(old_arr[i]) + 1, sizeof(char));
         strncpy(new_arr[i], old_arr[i], strlen(old_arr[i]));
-        free(old_arr[i]);
         i++;
     }
 
     new_arr[i] = NULL;
-    free(old_arr);
+    free_string_array(old_arr);
 
     return(new_arr);
 }
@@ -1128,11 +1116,13 @@ int sentinel_to_unix_timestamp(const int sentinel_time) {
 char* sentinel_to_utc_datestring(const int sentinel_time) {
     time_t t = sentinel_to_unix_timestamp(sentinel_time);
     const char* format = default_format;
-    char* outstr = calloc(60, sizeof(char));
+    static int str_length = 60;
+
+    char* outstr = calloc(str_length + 1, sizeof(char));
     struct tm lt;
     localtime_r(&t, &lt);
 
-    if (strftime(outstr, sizeof(outstr), format, &lt) == 0) {
+    if (strftime(outstr, str_length, format, &lt) == 0) {
         fprintf(stderr, "strftime returned 0 for %d\n", sentinel_time);
         return(0);
     }

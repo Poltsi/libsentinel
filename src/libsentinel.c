@@ -1113,7 +1113,7 @@ void free_string_array(char** str_arr) {
 }
 
 /**
- *
+ * sentinel_to_unix_timestamp: Converts sentinel seconds to unixtime
  **/
 
 int sentinel_to_unix_timestamp(const int sentinel_time) {
@@ -1121,7 +1121,7 @@ int sentinel_to_unix_timestamp(const int sentinel_time) {
 }
 
 /**
- *
+ * sentinel_to_utc_datestring: Converts sentinel seconds to datetime string
  **/
 
 // TODO: This is broken and does not return any strings
@@ -1141,7 +1141,7 @@ char* sentinel_to_utc_datestring(const int sentinel_time) {
 }
 
 /**
- *
+ * seconds_to_hms: Converts seconds to hh:mm:ss-string
  **/
 
 char* seconds_to_hms(const int seconds) {
@@ -1154,7 +1154,7 @@ char* seconds_to_hms(const int seconds) {
 }
 
 /**
- *
+ * sentinel_sleep: Sleeps for given milliseconds
  **/
 
 void sentinel_sleep(const int msecs) {

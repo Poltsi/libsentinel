@@ -312,6 +312,9 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
         return(false);
     }
 
+    // Testing the header_struct
+    (*header_struct)->record_interval = 10;
+    (*header_struct)->version = calloc(50, sizeof(char));
     // First we set the default values
     **header_struct = DEFAULT_HEADER;
     int line_idx = 0;
@@ -711,7 +714,7 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
  *
  **/
 
-bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
+bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
     /* Create and minimal allocation of the buffer */
     char** buffer = malloc(sizeof(char*));
     if (!download_sentinel_header(fd, buffer)) {
@@ -736,7 +739,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
     while (head_array[header_idx] != NULL) {
         printf("Allocating memory for header pointer (%d)\n", header_idx);
 
-        header_list = resize_sentinel_header_list(header_list, header_idx + 1);
+        *header_list = resize_sentinel_header_list(*header_list, header_idx + 1);
 
         if (header_list == NULL) {
             printf("%s: Failed to reallocate header_list\n", __func__);
@@ -747,12 +750,12 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t** header_list) {
         // header_list[header_idx] = alloc_sentinel_header();
         header_list[header_idx] = malloc(sizeof(sentinel_header_t));
 
-        if (!parse_sentinel_header(&header_list[header_idx], &head_array[header_idx])) {
+        if (!parse_sentinel_header(header_list[header_idx], &head_array[header_idx])) {
             printf("%s: ERROR: Failed parse the Sentinel header\n", __func__);
             return(false);
         }
 
-        printf("%s: New dive header struct populated, version: %s\n", __func__, header_list[header_idx]->version);
+        printf("%s: New dive header struct populated, version: %s\n", __func__, (*header_list)[header_idx]->version);
         header_idx++;
     }
 

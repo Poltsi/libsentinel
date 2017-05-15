@@ -22,7 +22,7 @@
 #include "libsentinel.h"
 
 /**
- *
+ * connect_sentinel: Connects to the given serial port and returns the file descriptor for it
  **/
 
 int connect_sentinel(char* device) {
@@ -70,7 +70,7 @@ int connect_sentinel(char* device) {
 }
 
 /**
- *
+ * open_sentinel_device: Opens the given filedescriptor of serial device with the appropriate settings
  **/
 
 int open_sentinel_device(char* device) {
@@ -113,19 +113,16 @@ bool is_sentinel_idle(int fd, const int tries) {
         if (n > 0) {
             for (int i = 0; i < n; i++) {
                 store_byte[p] = read_byte[i];
-                // printf("Waiting for 3 wait-bytes, got %d byte, storing it in buf (%d): '%s' comparing it to '%s'\n", n, p, store_byte, expected);
                 p++;
                 p = p % 3;
             }
 
             /* We reset the tries as this is really flushing the buffer */
             i = tries;
-            // printf("Flushing device buffer (%s)...\n", store_byte);
         }
 
         flushed_bytes += n;
         m = memcmp(store_byte, expected, sizeof(expected));
-        // printf("(%d) Match is %d for %lu vs %lu bytes\n", i, m, sizeof(store_byte), sizeof(expected));
 
         if (m == 0) {
             if (flushed_bytes > 0) printf("Flushed %d bytes from device buffer\n", flushed_bytes);
@@ -141,15 +138,13 @@ bool is_sentinel_idle(int fd, const int tries) {
 }
 
 /**
- *
+ * send_sentinel_command: Handles sending of commands to the rebreather
  **/
 
 bool send_sentinel_command(int fd, const void* command, size_t size) {
     size_t nbytes = 0;
     char* buf = calloc(size + 1, sizeof(char));
-    // memset(buf, 0, size + 1);
     strncpy(buf, command, size);
-    printf ("Writing byte: '%s' (%lu)\n", buf, size);
 
     while (nbytes < size) {
         size_t n = write(fd, (const char*) command + nbytes, size - nbytes);
@@ -162,7 +157,6 @@ bool send_sentinel_command(int fd, const void* command, size_t size) {
         nbytes += n;
     }
 
-    printf ("Write succeed\n");
     free(buf);
     return(true);
 }
@@ -193,9 +187,6 @@ bool read_sentinel_header_list(int fd, char** buffer) {
 
     while ((n > 0) &&
            (memcmp(header, expected, sizeof(expected)) != 0)) {
-/*        printf("Waited for '%02x %02x %02x', got something else('%02x %02x %02x'), refetching...\n",
-               (int) expected[0], (int) expected[1], (int) expected[2],
-               (int) header[0], (int) header[1], (int) header[2]); */
         n = read(fd, buf, sizeof(buf));
         header[0] = header[1];
         header[1] = header[2];
@@ -221,23 +212,17 @@ bool read_sentinel_header_list(int fd, char** buffer) {
     }
 
     printf("Read bytes: %d\n", i);
-/*
-    if (i > 0) {
-        buffer[i - 1] = '\0';
-    }
-*/
-    if (buffer == NULL || buffer == 0)
+
+    if (buffer == NULL) {
         printf("%s: Buffer is empty\n", __func__);
-    else {
-        printf("%s: Buffer:\n#####################\n%s\n#####################\n", __func__, *buffer);
-        printf("%s: Received buffer length: %lu\n", __func__, strlen(*buffer));
+        return(false);
     }
 
     return(true);
 }
 
 /**
- *
+ * read_sentinel_data; Waits for data from the given serial device and stores it in the given buffer
  **/
 
 bool read_sentinel_data(int fd, char** buffer) {
@@ -251,21 +236,18 @@ bool read_sentinel_data(int fd, char** buffer) {
             return(false);
         }
 
-        if (strncmp(*buffer, "P", 1) != 0) {
-            printf ("read_sentinel_data: No more wait bytes, got '%s' instead\n", *buffer);
+        if (strncmp(*buffer, SENTINEL_WAIT_BYTE, 1) != 0) {
             wait_bytes = false;
-        } else {
-            printf ("read_sentinel_data: Got a wait byte: '%s'\n", *buffer);
         }
 
-        sentinel_sleep(400);
+        sentinel_sleep(200);
     }
 
     return(true);
 }
 
 /**
- *
+ * disconnect_sentinel: Close the connection
  **/
 
 bool disconnect_sentinel(int fd) {
@@ -290,8 +272,6 @@ bool download_sentinel_header(int fd, char** buffer) {
     if (*buffer == NULL) {
         printf("%s: Received NULL value as answer from device\n", __func__);
         return(false);
-    } else {
-        printf("%s: Received buffer length: %lu\n", __func__, strlen(*buffer));
     }
 
     return(true);
@@ -303,9 +283,7 @@ bool download_sentinel_header(int fd, char** buffer) {
  **/
 
 bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
-    int buffer_size = strlen(*buffer);
-    dprint(true, "Parsable buffer size: %d\n", buffer_size);
-    char** h_lines = str_cut(buffer, "\r\n"); /* Cut it by lines */
+    char** h_lines = str_cut(buffer, SENTINEL_LINE_SEPARATOR); /* Cut it by lines */
 
     if (h_lines == NULL) {
         printf("ERROR: Received empty header string.\n");
@@ -319,9 +297,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
     while(h_lines[line_idx] != NULL) {
         printf("Inspecting line: '%s'\n", h_lines[line_idx]);
         if (strncmp(h_lines[line_idx], "ver=", 4) == 0) {
-            // header_struct->version = resize_string(header_struct->version, strlen(h_lines[line_idx]) - 4);
-
-            (*header_struct)->version = calloc((strlen(h_lines[line_idx]) - 3), sizeof(char));
+            (*header_struct)->version = resize_string((*header_struct)->version, strlen(h_lines[line_idx]) - 4);
             strncpy((*header_struct)->version, (h_lines[line_idx] + 4), (strlen(h_lines[line_idx]) - 4));
             printf("Found the version: '%s'\n", (*header_struct)->version);
             line_idx++;
@@ -367,6 +343,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             printf("Create unix timestamp of: '%s'\n", fields[2]);
             (*header_struct)->start_s = sentinel_to_unix_timestamp(atoi(fields[2]));
             printf("Create datetime\n");
+            // TODO: This is not working
             (*header_struct)->start_time = sentinel_to_utc_datestring(atoi(fields[2]));
             free_string_array(fields);
             printf("Found the start timestamp: %d = '%s'\n", (*header_struct)->start_s, (*header_struct)->start_time);
@@ -382,6 +359,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             }
 
             (*header_struct)->end_s = sentinel_to_unix_timestamp(atoi(fields[2]));
+            // TODO: This is not working
             (*header_struct)->end_time = sentinel_to_utc_datestring(atoi(fields[2]));
             free_string_array(fields);
             printf("Found the end timestamp: %d = '%s'\n", (*header_struct)->end_s, (*header_struct)->end_time);
@@ -473,6 +451,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "DCNS ", 5) == 0) {
+            // TODO: This gets rounded up to 2 decimals
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
@@ -487,6 +466,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "DSafety ", 8) == 0) {
+            // TODO: This gets rounded up to 2 decimals
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
@@ -593,6 +573,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
                 return(false);
             }
 
+            // TODO: This is not working
             int gas_idx = atoi(fields[0]) - 4010;
             (*header_struct)->gas[gas_idx].n2 = atoi(fields[1]);
             (*header_struct)->gas[gas_idx].he = atoi(fields[2]);
@@ -614,6 +595,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
                 return(false);
             }
 
+            // TODO: This is not working
             int tissue_idx = atoi(fields[0]) - 4020;
             (*header_struct)->tissue[tissue_idx].t1 = atoi(fields[1]);
             (*header_struct)->tissue[tissue_idx].t2 = atoi(fields[2]);
@@ -708,7 +690,7 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
 }
 
 /**
- *
+ * get_sentinel_dive_list: Fetches the dive header data and populates the given header-struct list
  **/
 
 bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
@@ -721,7 +703,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
 
     printf("%s: Received buffer length: %lu\n", __func__, strlen(*buffer));
 
-    char** head_array = str_cut(buffer, "d\r\n");
+    char** head_array = str_cut(buffer, SENTINEL_HEADER_SEPARATOR);
 
     /* We can now free the original buffer */
     free(buffer);
@@ -734,30 +716,25 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
     int header_idx = 0;
 
     while (head_array[header_idx] != NULL) {
-        printf("Allocating memory for header pointer (%d)\n", header_idx);
-
         *header_list = resize_sentinel_header_list(*header_list, header_idx + 1);
 
         if (*header_list == NULL) {
-            printf("%s: Failed to reallocate header_list\n", __func__);
+            printf("%s: ERROR Failed to reallocate header_list\n", __func__);
             return(false);
         }
 
-        printf("Allocating memory for header struct (%d)\n", header_idx);
         (*header_list)[header_idx] = alloc_sentinel_header();
 
         if ((*header_list)[header_idx] == NULL) {
             printf("%s: ERROR Could not allocate memory for header struct (%d)\n", __func__, header_idx);
             return(false);
         }
-        // (*header_list)[header_idx] = malloc(sizeof(sentinel_header_t));
 
         if (!parse_sentinel_header(&(*header_list)[header_idx], &head_array[header_idx])) {
             printf("%s: ERROR: Failed parse the Sentinel header\n", __func__);
             return(false);
         }
 
-        printf("%s: New dive header struct populated, version: %s\n", __func__, (*header_list)[header_idx]->version);
         header_idx++;
     }
 
@@ -768,7 +745,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
 
 /**
  * alloc_sentinel_header: Returns an allocated memory structure for header struct.
- *                      This will not allocate the member values
+ *                        This will not allocate the member values
  **/
 
 sentinel_header_t* alloc_sentinel_header(void) {
@@ -792,9 +769,7 @@ void free_sentinel_header(sentinel_header_t* header) {
         if (header->serial_number != NULL) free(header->serial_number);
         if (header->start_time    != NULL) free(header->start_time);
         if (header->end_time      != NULL) free(header->end_time);
-/*
         if (header->log           != NULL) free(header->log);
-*/
         free(header);
     }
 }
@@ -968,7 +943,8 @@ bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
 /*************************************************************************/
 
 /**
- *
+ * str_cut: Homegrown disoptimized string cutter, takes a long string as well as the delimitator, and returns
+ *          an array of strings with all the pieces
  **/
 
 char** str_cut(char** orig_string, const char* delim) {
@@ -1035,12 +1011,6 @@ char** str_cut(char** orig_string, const char* delim) {
         arr_idx++;
     }
 
-    int i = 0;
-    while (str_array[i] != NULL) {
-        printf("%s: str_array[%d]: '%s'\n", __func__, i, str_array[i]);
-        i++;
-    }
-
     return(str_array);
 }
 
@@ -1086,8 +1056,6 @@ char* resize_string(char* old_str, int string_length) {
 
 char** resize_string_array(char** old_arr, int arr_size) {
     char** new_arr = calloc(arr_size + 1, sizeof(char**));
-    printf("%s: Requested to resize array to %d\n", __func__, arr_size);
-    printf("%s: Calloced an array with %d items\n", __func__, arr_size + 1);
 
     if (old_arr == NULL && arr_size > 0) {
         printf("%s: the old array is null, return an array pointing to %d null strings\n", __func__, arr_size);

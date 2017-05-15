@@ -312,9 +312,6 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
         return(false);
     }
 
-    // Testing the header_struct
-    (*header_struct)->record_interval = 10;
-    (*header_struct)->version = calloc(50, sizeof(char));
     // First we set the default values
     **header_struct = DEFAULT_HEADER;
     int line_idx = 0;
@@ -747,8 +744,13 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
         }
 
         printf("Allocating memory for header struct (%d)\n", header_idx);
-        // header_list[header_idx] = alloc_sentinel_header();
-        header_list[header_idx] = malloc(sizeof(sentinel_header_t));
+        (*header_list)[header_idx] = alloc_sentinel_header();
+
+        if ((*header_list)[header_idx] == NULL) {
+            printf("%s: ERROR Could not allocate memory for header struct (%d)\n", __func__, header_idx);
+            return(false);
+        }
+        // (*header_list)[header_idx] = malloc(sizeof(sentinel_header_t));
 
         if (!parse_sentinel_header(header_list[header_idx], &head_array[header_idx])) {
             printf("%s: ERROR: Failed parse the Sentinel header\n", __func__);
@@ -1154,8 +1156,9 @@ int sentinel_to_unix_timestamp(const int sentinel_time) {
  *
  **/
 
+// TODO: This is broken and does not return any strings
 char* sentinel_to_utc_datestring(const int sentinel_time) {
-    time_t t = (sentinel_time + SENTINEL_TIME_START);
+    time_t t = sentinel_to_unix_timestamp(sentinel_time);
     const char* format = default_format;
     char* outstr = calloc(60, sizeof(char));
     struct tm lt;

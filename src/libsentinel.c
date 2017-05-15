@@ -738,7 +738,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
 
         *header_list = resize_sentinel_header_list(*header_list, header_idx + 1);
 
-        if (header_list == NULL) {
+        if (*header_list == NULL) {
             printf("%s: Failed to reallocate header_list\n", __func__);
             return(false);
         }
@@ -752,7 +752,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
         }
         // (*header_list)[header_idx] = malloc(sizeof(sentinel_header_t));
 
-        if (!parse_sentinel_header(header_list[header_idx], &head_array[header_idx])) {
+        if (!parse_sentinel_header(&(*header_list)[header_idx], &head_array[header_idx])) {
             printf("%s: ERROR: Failed parse the Sentinel header\n", __func__);
             return(false);
         }

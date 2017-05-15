@@ -62,4 +62,5 @@ make valgrind PORT=/dev/pts/<pts id>
 
 - [ ] lib: Download a given dive data
 - [ ] lib: Better verbose-handling
+- [ ] lib: Check function return values
 - [ ] exe: Printout of header list

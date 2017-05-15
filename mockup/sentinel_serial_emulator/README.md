@@ -26,7 +26,7 @@ Observe which pts's it connects to, and after that you can fire up the emulator 
 ./sentinel_serial_emulator.pl /dev/pts/<pts id>
 ```
 
-Note that if the emulator starts to complain about 'Unknown command P' continuously then you need to restart the emulator, switching the pts to the other one.
+Note that if the emulator starts to complain about 'Read unknown command: P' continuously then you need to restart the emulator, switching the pts to the other one.
 
 ## How does it work
 

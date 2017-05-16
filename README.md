@@ -1,6 +1,6 @@
 # Libsentinel
 
-The goal with this library is to provide an API with 3 main functions to access the (older) Sentinel rebreather previously manufactured by VR Technologies and currently (up until the RedHead) by [VMS](http://www.vmsrebreathers.com/):
+The goal with this library is to provide an API with 4 main functions to access the (older) Sentinel rebreather previously manufactured by VR Technologies and currently (up until the RedHead) by [VMS](http://www.vmsrebreathers.com/):
 
 1. get_sentinel_dive_list which returns the header part of each dive found in the rebreather as a list of header structs with the log-member as null
 2. get_sentinel_dives_all which returns essentially the same list above, with the addition of also having the log member populated as well as gas and tissue data for each dive

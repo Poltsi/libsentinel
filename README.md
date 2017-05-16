@@ -1,6 +1,6 @@
 # Libsentinel
 
-The goal with this library is to provide an API with 3 main functions:
+The goal with this library is to provide an API with 3 main functions to access the (older) Sentinel rebreather previously manufactured by VR Technologies and currently (up until the RedHead) by VMS:
 
 1. get_sentinel_dive_list which returns the header part of each dive found in the rebreather as a list of header structs with the log-member as null
 2. get_sentinel_dives_all which returns essentially the same list above, with the addition of also having the log member populated
@@ -64,3 +64,11 @@ make valgrind PORT=/dev/pts/<pts id>
 - [ ] lib: Better verbose-handling
 - [ ] lib: Check function return values
 - [ ] exe: Printout of header list
+
+## Caveats and disclaimers
+
+This piece of software is provided as-is without any warranties nor any fitness for a particular purpose and none of the makers can be held responsible for any kind of damage. In short, if you use this software and it breaks your stuff, you can keep both pieces.
+
+The software is distributed under the LGPLv2 license (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt), please familiarize yourself with the terms.
+
+The makers of this software do not have any affiliation with neither VR Technologies nor VMS, so there is no point trying to contact them regarding this piece of software.

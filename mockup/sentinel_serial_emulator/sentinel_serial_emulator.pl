@@ -36,8 +36,6 @@ my @diveData;
 @{ $diveData[ 1 ] } = &readDiveData( '2.txt' );
 @{ $diveData[ 2 ] } = &readDiveData( '3.txt' );
 
-print( "Dive dump:\n" . Dumper( \@diveData ) . "\n" );
-
 $| = 1;
 
 my $port = shift;
@@ -88,16 +86,6 @@ $ob->can_modemlines;
 $ob->can_wait_modemlines;
 $ob->can_intr_count;
 $ob->write_settings;
-
-print 
-    "A = $arb\n",
-    "B = $baud\n",
-    "D = $data\n", 
-    "S = $stop\n",
-    "P = $parity\n",
-    "H = $hshake\n",
-    "R = $rs\n",
-    "T = $total\n";
 
 if( $ob->can_write_done )
 {
@@ -185,17 +173,17 @@ sub readDiveData
 sub printDiveEntries
 {
     my $ob = shift;
-    print( "Printing the dive entries\n" );
     # The actual data to be sent
     my $payload = "";
     my $idx = 0;
-    my $ldx = 0;
 
     while( exists( $diveData[ $idx ] ) )
     {
+        # Skip the first line as it is the <\s>d\r\n
+        my $ldx = 1;
         $payload .= "d\r\n";
 
-        while( ! $diveData[ $idx ][ $ldx ] =~ m/^Gas\s/ )
+        while( $diveData[ $idx ][ $ldx ] !~ m/^Gas\s/ )
         {
             $payload .= $diveData[ $idx ][ $ldx ] . "\r\n";
             $ldx++;
@@ -204,7 +192,6 @@ sub printDiveEntries
         $idx++;
     }
 
-    print( "Header data:\n" . $payload . "\n" );
     &printToDevice( $ob, $payload );
 
     return();
@@ -248,14 +235,6 @@ sub printSingleDive
     print( "printSingleDive: Called with dive number: " . $diveNumber . "\n" );
 
     # TODO: Check that the divenumber actually exists
-    # First the character for initialization
-    # my $payload = "d\r\n";
-    # print( "Printing the dive data start\n" );
-    # my $output = &printToDevice( $ob, $payload );
-    
-    # print( "Wrote data start, length: " . $output . "\n" );
-
-    # Then the actual data
     my $payload = join( "\r\n", @{$diveData[ $diveNumber ]} );
 
     my $output = &printToDevice( $ob, $payload );

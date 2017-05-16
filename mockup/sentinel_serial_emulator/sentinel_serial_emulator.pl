@@ -27,6 +27,10 @@ use Time::HiRes qw( usleep );
 use Data::Dumper;
 
 # Read the dive data
+# TODO: Detect version of dive data and accordingly also recognize the number of header lines.
+#       The header data should essentially contain everything up to the gas list.
+#       For V3.0C, which does not have the cell health, this is to line 15, while for V009A and
+#       V009B it is up to line 28
 my @diveData;
 @{ $diveData[ 0 ] } = &readDiveData( '1.txt' );
 @{ $diveData[ 1 ] } = &readDiveData( '2.txt' );
@@ -86,14 +90,14 @@ $ob->can_intr_count;
 $ob->write_settings;
 
 print 
-"A = $arb\n",
-"B = $baud\n",
-"D = $data\n", 
-"S = $stop\n",
-"P = $parity\n",
-"H = $hshake\n",
-"R = $rs\n",
-"T = $total\n";
+    "A = $arb\n",
+    "B = $baud\n",
+    "D = $data\n", 
+    "S = $stop\n",
+    "P = $parity\n",
+    "H = $hshake\n",
+    "R = $rs\n",
+    "T = $total\n";
 
 if( $ob->can_write_done )
 {
@@ -173,22 +177,30 @@ sub readDiveData
 
 ###################################################################################
 #
-# printDiveEntries: Prints the header part of the dives. The header is essentially
-#                   lines 1-27 of the dive data
+# printDiveEntries: Prints the header part of the dives. Depending of the version
+#                   of the log, this varies but should be everything up until the
+#                   list of gases
 #
 
 sub printDiveEntries
 {
     my $ob = shift;
     print( "Printing the dive entries\n" );
-    # The actual data, go through the array and print lines 1-27 of each sub-array
+    # The actual data to be sent
     my $payload = "";
     my $idx = 0;
+    my $ldx = 0;
 
     while( exists( $diveData[ $idx ] ) )
     {
         $payload .= "d\r\n";
-        $payload .= join( "\r\n", @{ $diveData[ $idx ] }[ 1..27 ] );
+
+        while( ! $diveData[ $idx ][ $ldx ] =~ m/^Gas\s/ )
+        {
+            $payload .= $diveData[ $idx ][ $ldx ] . "\r\n";
+            $ldx++;
+        }
+
         $idx++;
     }
 

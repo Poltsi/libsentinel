@@ -306,7 +306,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             continue;
         }
         if (strncmp(h_lines[line_idx], "SN=", 3) == 0) {
-            (*header_struct)->serial_number = calloc((strlen(h_lines[line_idx]) - 3), sizeof(char));
+            (*header_struct)->serial_number = resize_string((*header_struct)->serial_number, strlen(h_lines[line_idx]) - 3);
             strncpy((*header_struct)->serial_number, (h_lines[line_idx] + 3), (strlen(h_lines[line_idx]) - 4));
             line_idx++;
             continue;
@@ -496,7 +496,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
                 return(false);
             }
 
-            (*header_struct)->decoalg = calloc((strlen(fields[1]) + 1), sizeof(char));
+            (*header_struct)->decoalg = resize_string((*header_struct)->decoalg, strlen(fields[1]));
             strncpy((*header_struct)->decoalg, fields[1], strlen(fields[1]));
             free_string_array(fields);
             line_idx++;
@@ -843,7 +843,7 @@ void free_sentinel_header_list(sentinel_header_t** old_list) {
     int i = 0;
 
     while (old_list[i] != NULL) {
-        free(old_list[i]);
+        free_sentinel_header(old_list[i]);
         i++;
     }
 
@@ -851,7 +851,7 @@ void free_sentinel_header_list(sentinel_header_t** old_list) {
 }
 
 /**
- *
+ * get_sentinel_note: Creates and returns a note struct on the given note-string
  **/
 
 bool get_sentinel_note(char* note_str, sentinel_note_t* note) {

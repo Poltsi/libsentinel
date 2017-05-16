@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
             int i = 0;
 
             while (header_list[i] != NULL) {
-                printf("%s: # %d #####################################################################3", __func__, i);
+                printf("%s: # %d #####################################################################\n", __func__, i);
                 print_sentinel_header(header_list[i]);
                 i++;
             }

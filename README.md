@@ -1,10 +1,13 @@
 # Libsentinel
 
-The goal with this library is to provide an API with 3 main functions to access the (older) Sentinel rebreather previously manufactured by VR Technologies and currently (up until the RedHead) by VMS:
+The goal with this library is to provide an API with 3 main functions to access the (older) Sentinel rebreather previously manufactured by VR Technologies and currently (up until the RedHead) by [VMS](http://www.vmsrebreathers.com/):
 
 1. get_sentinel_dive_list which returns the header part of each dive found in the rebreather as a list of header structs with the log-member as null
-2. get_sentinel_dives_all which returns essentially the same list above, with the addition of also having the log member populated
+2. get_sentinel_dives_all which returns essentially the same list above, with the addition of also having the log member populated as well as gas and tissue data for each dive
 3. get_sentinel_dive returns the header and log part of a particular dive
+4. get_sentinel_dive_number returns the number of dive logs on the rebreather
+
+The last one may be too fuzzy to be used since the rebreather electronics can essentially store only around 10 hours of dive telemetrics, so the accuracy of the returned value is probably not to be trusted.
 
 There are commands to change the rebreather settings, but currently I have no plans on implementing any of these.
 
@@ -57,6 +60,16 @@ Alternatively you can run the binary under valgrind with the Makefile target val
 ```
 make valgrind PORT=/dev/pts/<pts id>
 ```
+
+## Commands
+
+Command | Meaning
+--------|--------
+M | Get the list of dive headers
+D<int> | Get the dive data of the given dive, you need to have the list of dive headers to know which one is what
+RN | Get the record interval as well as some other settings of the rebreather
+H | Unknown
+S<int>F | Set the recording interval to <int> seconds
 
 ## TODO
 

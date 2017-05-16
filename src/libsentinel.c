@@ -671,6 +671,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
     char** buffer = malloc(sizeof(char*));
     if (!download_sentinel_header(fd, buffer)) {
         printf("ERROR: Failed to get the Sentinel header\n");
+        free(buffer);
         return(false);
     }
 

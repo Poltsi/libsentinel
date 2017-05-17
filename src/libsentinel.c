@@ -584,6 +584,14 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
         line_idx++;
     }
 
+    // Some additional computations
+    // Calculate the length of the dive
+    if ((*header_struct)->start_s < (*header_struct)->end_s &&
+        (*header_struct)->start_s > 0) {
+        (*header_struct)->length_s = (*header_struct)->end_s - (*header_struct)->start_s;
+        (*header_struct)->length_time = seconds_to_hms((*header_struct)->length_s);
+    }
+
     (*header_struct)->log = NULL;
 
     free_string_array(h_lines);
@@ -744,6 +752,7 @@ void free_sentinel_header(sentinel_header_t* header) {
         if (header->serial_number != NULL) free(header->serial_number);
         if (header->start_time    != NULL) free(header->start_time);
         if (header->end_time      != NULL) free(header->end_time);
+        if (header->length_time   != NULL) free(header->length_time);
         if (header->log           != NULL) free(header->log);
         free(header);
     }
@@ -802,9 +811,10 @@ void print_sentinel_header(sentinel_header_t* header) {
 void short_print_sentinel_header(int number, sentinel_header_t* header) {
     if (header != NULL) {
         printf("Dive#: %02d ", number);
-        printf("start_time: %s ", header->start_time);
-        printf("end_time: %s ", header->end_time);
-        printf("max_depth: %.2lf\n", header->max_depth);
+        printf("start time: %s ", header->start_time);
+        printf("end time: %s ", header->end_time);
+        printf("length time: %s ", header->length_time);
+        printf("max depth: %.2lf\n", header->max_depth);
     }
 }
 
@@ -1125,11 +1135,12 @@ char* sentinel_to_utc_datestring(const int sentinel_time) {
  **/
 
 char* seconds_to_hms(const int seconds) {
-    char* outstr = calloc(200, sizeof(char));
+    static int str_length = 60;
+    char* outstr = calloc(str_length, sizeof(char));
     int hours    = seconds / 3600;
-    int mins     = seconds / 60;
+    int mins     = (seconds - hours * 3600) / 60;
     int secs     = seconds % 60;
-    sprintf(outstr, "%.2d:%.2d:%d.02d", hours, mins, secs);
+    sprintf(outstr, "%.2d:%.2d:%.02d", hours, mins, secs);
     return(outstr);
 }
 

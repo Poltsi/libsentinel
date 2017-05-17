@@ -92,8 +92,10 @@ typedef struct sentinel_dive_header {
     int log_lines; /* Last number of Mem */
     int start_s; /* Original value converted to unixtime */
     int end_s; /* Original value converted to unixtime */
+    int length_s; /* Length of the dive, in seconds */
     char* start_time; /* Derived string representation from the start_s */
     char* end_time; /* Derived string representation from the end_s */
+    char* length_time; /* Derived string representation from the length_s */
     double max_depth;
     int status;
     int otu;
@@ -123,6 +125,8 @@ const sentinel_header_t DEFAULT_HEADER = {
     0,
     0,
     0,
+    0,
+    NULL,
     NULL,
     NULL,
     0.0,

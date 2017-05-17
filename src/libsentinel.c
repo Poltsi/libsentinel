@@ -1145,7 +1145,7 @@ void sentinel_sleep(const int msecs) {
     while (nanosleep (&ts, &ts) != 0) {
         int errcode = errno;
         if (errcode != EINTR ) {
-            printf("Something went wrong while nanosleeping\n");
+            printf("%s: ERROR Something went wrong while nanosleeping\n", __func__);
         }
     }
 }

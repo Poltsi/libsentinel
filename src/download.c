@@ -144,11 +144,13 @@ int main(int argc, char **argv) {
         if (res && (header_list != NULL)) {
             int i = 0;
 
+            printf("######################################################################\n");
             while (header_list[i] != NULL) {
-                printf("%s: # %d #####################################################################\n", __func__, i);
-                print_sentinel_header(header_list[i]);
+                short_print_sentinel_header(i, header_list[i]);
                 i++;
             }
+
+            printf("######################################################################\n");
         }
 
         if (header_list != NULL) free_sentinel_header_list(header_list);

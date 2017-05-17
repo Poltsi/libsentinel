@@ -164,6 +164,8 @@ extern sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_l
 extern void free_sentinel_header(sentinel_header_t* header);
 extern void free_sentinel_header_list(sentinel_header_t** h_list);
 extern void print_sentinel_header(sentinel_header_t* header);
+extern void short_print_sentinel_header(int number, sentinel_header_t* header);
+
 /* Internal functions */
 char** str_cut(char** orig_string, const char* delim);
 int sentinel_to_unix_timestamp(int sentinel_time);

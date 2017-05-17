@@ -796,6 +796,19 @@ void print_sentinel_header(sentinel_header_t* header) {
 }
 
 /**
+ * short_print_sentinel_header: Prints out to std some data of the dive, on one line
+ **/
+
+void short_print_sentinel_header(int number, sentinel_header_t* header) {
+    if (header != NULL) {
+        printf("Dive#: %02d ", number);
+        printf("start_time: %s ", header->start_time);
+        printf("end_time: %s ", header->end_time);
+        printf("max_depth: %.2lf\n", header->max_depth);
+    }
+}
+
+/**
  * resize_sentinel_header_list: Manages the resizing of an sentinel_header_t array
  **/
 

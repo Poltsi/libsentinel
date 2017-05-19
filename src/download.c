@@ -79,9 +79,13 @@ int main(int argc, char **argv) {
     /* Some rudimentary checks */
     /* Sanity checks on from and to dive number if they are other than default (0 and 0)*/
     if (from_dive || to_dive) {
+        if (list_dives) {
+            printf("ERROR: Requesting both the list as well as downloading of dives is not supported. please choose either one\n");
+            print_help();
+            exit(1);
+        }
         if (from_dive > to_dive) {
             printf("ERROR: The start (%d) of the requested dive list is bigger than the end (%d) of the list, aborting\n", from_dive, to_dive);
-
             print_help();
             exit(1);
         }
@@ -156,6 +160,7 @@ int main(int argc, char **argv) {
         if (header_list != NULL) free_sentinel_header_list(header_list);
     }
 
+    dprint(verbose, "Printing dives from %d to %d\n", from_dive, to_dive);
     printf("%s: Task completed\n", __func__);
-    return(0);
+    exit(0);
 }

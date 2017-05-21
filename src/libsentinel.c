@@ -936,6 +936,27 @@ bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
 
     return(note);
 }
+
+bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_item) {
+    int cmd_size = (int) log10(dive_num) + 2;
+    char command[cmd_size];
+    char** buffer = malloc(sizeof(char*));
+
+    sprintf(command, "D%d", dive_num);
+    printf("%s: Send download command: '%s'\n", __func__, command);
+    bool res = send_sentinel_command(fd, &command, sizeof(command));
+    if (!res) return(false);
+
+    if (!read_sentinel_header_list(fd, buffer)) {
+        printf("%s: ERROR: Failed to read dive data from Sentinel\n", __func__);
+        return(false);
+    }
+
+    printf("%s: ======================================================================\n", __func__);
+    printf("%s\n", *buffer);
+    printf("%s: ======================================================================\n", __func__);
+    return(res);
+}
 /*************************************************************************/
 /* Minor helper functions used internally                                */
 /*************************************************************************/

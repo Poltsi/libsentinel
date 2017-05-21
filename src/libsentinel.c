@@ -687,13 +687,13 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
     // char** head_array = str_cut(buffer, SENTINEL_HEADER_SEPARATOR);
     char** head_array = str_cut(buffer, "d\r\n");
 
-    /* We can now free the original buffer */
-    free(buffer);
-
     if (head_array == NULL) {
         printf("ERROR: Received empty head array from: '%s'\n", *buffer);
         return(false);
     }
+
+    /* We can now free the original buffer */
+    free(*buffer);
 
     int header_idx = 0;
 

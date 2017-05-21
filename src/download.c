@@ -28,7 +28,8 @@
 void print_help()
 {
     printf("Usage:\n");
-    printf("download -d <device> -f <num> -h -l -n <num> -t <num> -v\n");
+    printf("download -d <device> [ [-f <num>]  [-t <num>] | [-n <num>] ] [-v] | -h | -l\n");
+    printf("Default behavior is to download all dives\n");
     printf("-d <device> Which device to use, usually /dev/ttyUSB0\n");
     printf("-f <num> Optional: Start downloading from this dive, list the dives first to see the number\n");
     printf("-h This help\n");
@@ -54,7 +55,7 @@ int main(int argc, char **argv) {
             device_name = realloc(device_name, (strlen(optarg) + 1));
             strcpy(device_name, optarg);
             break;
-        case 'f': /* List dives (from dive header) */
+        case 'f': /* Download dives (from dive header) */
             from_dive = atoi(optarg);
             break;
         case 'l': /* List dives (from dive header) */
@@ -63,7 +64,7 @@ int main(int argc, char **argv) {
         case 'n': /* Download dive #n */
             from_dive = to_dive = atoi(optarg);
             break;
-        case 't': /* Download dive #n */
+        case 't': /* Download all dives up to #n */
             to_dive = atoi(optarg);
             break;
         case 'v':
@@ -147,6 +148,27 @@ int main(int argc, char **argv) {
             printf("######################################################################\n");
             while (header_list[i] != NULL) {
                 short_print_sentinel_header(i, header_list[i]);
+                i++;
+            }
+
+            printf("######################################################################\n");
+        }
+
+        if (header_list != NULL) free_sentinel_header_list(header_list);
+    } else {
+        // Download all dives
+        // First, get the list of dive headers
+        dprint(verbose, "Get the list of dives\n");
+        sentinel_header_t **header_list = NULL;
+        bool res = get_sentinel_dive_list(fd, &header_list);
+        // Next download each dive data
+        if (res && (header_list != NULL)) {
+            int i = from_dive;
+
+            printf("######################################################################\n");
+            while (header_list[i] != NULL && i <= to_dive) {
+                printf("Downloading dive number: %d\n", i);
+                download_sentinel_dive(fd, i, &header_list[i]);
                 i++;
             }
 

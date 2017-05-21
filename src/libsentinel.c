@@ -676,8 +676,8 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
 
 bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
     /* Create and minimal allocation of the buffer */
-    char** buffer = malloc(sizeof(char*));
-    if (!download_sentinel_header(fd, buffer)) {
+    char* buffer;
+    if (!download_sentinel_header(fd, &buffer)) {
         printf("ERROR: Failed to get the Sentinel header\n");
         free(buffer);
         return(false);
@@ -685,15 +685,15 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
 
     // TODO: This is not working, for some reason SENTINEL_HEADER_SEPARATOR is longer (5) and has 2 newlines
     // char** head_array = str_cut(buffer, SENTINEL_HEADER_SEPARATOR);
-    char** head_array = str_cut(buffer, "d\r\n");
+    char** head_array = str_cut(&buffer, "d\r\n");
 
     if (head_array == NULL) {
-        printf("ERROR: Received empty head array from: '%s'\n", *buffer);
+        printf("ERROR: Received empty head array from: '%s'\n", buffer);
         return(false);
     }
 
     /* We can now free the original buffer */
-    free(*buffer);
+    free(buffer);
 
     int header_idx = 0;
 

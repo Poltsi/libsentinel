@@ -20,7 +20,7 @@ CFLAGS       = -fPIC -pedantic -Wall -Wextra -march=native -ggdb3 -I$(INC_DIR)
 DEBUGFLAGS   = -O0 -D _DEBUG
 FLAGS        = -std=gnu99
 LDFLAGS      = -shared
-LINKFLAG     = -Wl,-rpath $(LIBDIR)
+LINKFLAG     = -Wl,-rpath $(LIBDIR)  -lm
 RELEASEFLAGS = -O2 -D NDEBUG -combine -fwhole-program
 
 VALGRIND_PARAMS =  --leak-check=yes --leak-check=full --show-leak-kinds=all --show-reachable=yes --num-callers=20 --track-fds=yes
@@ -42,6 +42,9 @@ $(CMDTOOL): $(LIBFILE) $(BINOBJECTS)
 
 valgrind: clean $(CMDTOOL)
 	valgrind $(VALGRIND_PARAMS) $(BINDIR)/$(CMDTOOL) -d $(PORT) -l -v 2>&1 | tee out-`date "+%Y.%m.%d-%H:%M:%S"`.log
+
+valgrinddl: clean $(CMDTOOL)
+	valgrind $(VALGRIND_PARAMS) $(BINDIR)/$(CMDTOOL) -d $(PORT) -f 1 -t 2 -v 2>&1 | tee out-`date "+%Y.%m.%d-%H:%M:%S"`.log
 
 clean:
 	rm -f $(LIBOBJECTS) $(BINOBJECTS) $(BINDIR)/$(CMDTOOL) $(LIBDIR)/$(LIBFILE)

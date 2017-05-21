@@ -29,6 +29,7 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#include <math.h>
 
 #ifndef LIBSENTINEL_H
 #define LIBSENTINEL_H
@@ -36,7 +37,7 @@
 /* Constants */
 #define SENTINEL_TIME_START 694137600
 static const char default_format[] = "%F %T %Z%z";
-static const int SENTINEL_LOOP_SLEEP_MS = 100;
+static const int SENTINEL_LOOP_SLEEP_MS = 50;
 /* Commands */
 static const char SENTINEL_LIST_CMD[1]  = {0x4d}; // d command to list the dive headers
 static const char SENTINEL_WAIT_BYTE[1] = {0x50}; // P the rebreather prints this when it is waiting for a command
@@ -169,6 +170,7 @@ extern void free_sentinel_header(sentinel_header_t* header);
 extern void free_sentinel_header_list(sentinel_header_t** h_list);
 extern void print_sentinel_header(sentinel_header_t* header);
 extern void short_print_sentinel_header(int number, sentinel_header_t* header);
+extern bool download_sentinel_dive(int device, int dive_num, sentinel_header_t** header_item);
 
 /* Internal functions */
 char** str_cut(char** orig_string, const char* delim);

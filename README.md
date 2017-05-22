@@ -53,30 +53,31 @@ Once you have the binary compiled, socat and emulator running, you can either ma
 usr/local/bin/download -d /dev/pts/<pts id> -l
 ```
 
-Currently only the header list command (-l) is enabled.
-
 Alternatively you can run the binary under valgrind with the Makefile target valgrind giving it the parameter PORT like so:
 
 ```
 make valgrind PORT=/dev/pts/<pts id>
 ```
 
-## Commands
+Currently only the header list command (-l) is fully functional. The dive download is a stump and under development. You can use the -f, -t or -n to indicate the start/end, or what specific dive you want to download.
 
-Command | Meaning
---------|--------
-M | Get the list of dive headers
-D<int> | Get the dive data of the given dive, you need to have the list of dive headers to know which one is what
-RN | Get the record interval as well as some other settings of the rebreather
-H | Unknown
-S<int>F | Set the recording interval to <int> seconds
+## Commands and responses
+
+Hex | Command | Meaning
+----|---------|--------
+4D | M | Get the list of dive headers
+44 <hex> | D<hex> | Get the dive data of the given dive, you need to have the list of dive headers to know which one is what. The hex starts at 30 (0 in decimal) for the most recent dive, and depending on how many there are, goes on, even beyond 39 (9)
+52 | R | Get the record interval as well as some other settings of the rebreather, the response should be r\r\n<int>\r\n
+48 | H | Unknown
+53 <hex> 46 | S<int>F | Set the recording interval to <int> seconds, response should be something like: s\r\nfound 2\r\n<int>F\r\n<int>\r\n
+50 | P | wait byte from the rebreather indicating that it will accept commands
 
 ## TODO
 
 - [ ] lib: Download a given dive data
 - [ ] lib: Better verbose-handling
 - [ ] lib: Check function return values
-- [ ] exe: Printout of header list
+- [x] exe: Printout of header list
 
 ## Caveats and disclaimers
 

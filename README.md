@@ -69,7 +69,7 @@ Hex | Command | Meaning
 44 &lt;hex&gt; | D&lt;hex&gt; | Get the dive data of the given dive, you need to have the list of dive headers to know which one is what. The hex starts at 30 (0 in decimal) for the most recent dive, and depending on how many there are, goes on, even beyond 39 (9)
 52 | R | Get the record interval as well as some other settings of the rebreather, the response should be r\r\n&lt;int&gt;\r\n
 48 | H | Unknown
-53 &lt;hex&gt; 46 | S&lt;int&gt;F | Set the recording interval to &lt;int&gt; seconds, response should be something like: s\r\nfound 2\r\n&lt;int&gt;F\r\n&lt;int&gt;\r\n
+53 &lt;hex&gt; 46 | S&lt;int&gt;F | Set the recording interval to &lt;int&gt; seconds, response should be something like: s\r\nfound 2\r\n&lt;int&gt;F\r\n+^+\r\n&lt;int&gt;\r\n
 50 | P | wait byte from the rebreather indicating that it will accept commands
 
 ## TODO

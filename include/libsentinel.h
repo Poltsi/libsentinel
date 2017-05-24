@@ -41,7 +41,7 @@ static const int SENTINEL_LOOP_SLEEP_MS = 50;
 /* Commands */
 static const char SENTINEL_LIST_CMD[1]  = {0x4d}; // d command to list the dive headers
 static const char SENTINEL_WAIT_BYTE[1] = {0x50}; // P the rebreather prints this when it is waiting for a command
-static const char SENTINEL_HEADER_SEPARATOR[3] = {0x64,0x0d, 0x0a}; // d\r\n
+static const char SENTINEL_HEADER_START[3] = {0x64,0x0d, 0x0a}; // d\r\n
 static const char SENTINEL_LINE_SEPARATOR[2] = {0x0d, 0x0a}; // \r\n
 /* Macros */
 #define dprint(verbose, ...) ( verbose ? printf(__VA_ARGS__) : 0)
@@ -157,9 +157,9 @@ extern int open_sentinel_device(char* device);
 extern bool is_sentinel_idle(int fd, const int tries);
 extern bool send_sentinel_command(int fd, const void* command, size_t size);
 extern bool read_sentinel_header_list(int fd, char** buffer);
-extern bool read_sentinel_data(int fd, char** buffer);
-extern bool disconnect_sentinel(int fd);
 extern bool download_sentinel_header(int fd, char** buffer);
+extern bool disconnect_sentinel(int fd);
+extern bool read_sentinel_response(int fd, char** buffer, const char* start, int start_len);
 extern bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer);
 extern bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list);
 extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr);

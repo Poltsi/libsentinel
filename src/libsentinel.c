@@ -142,6 +142,7 @@ bool is_sentinel_idle(int fd, const int tries) {
  **/
 
 bool send_sentinel_command(int fd, const void* command, size_t size) {
+    printf("%s: Called\n", __func__);
     size_t nbytes = 0;
     char* buf = calloc(size + 1, sizeof(char));
     strncpy(buf, command, size);
@@ -162,42 +163,52 @@ bool send_sentinel_command(int fd, const void* command, size_t size) {
 }
 
 /**
- * read_sentinel_header_list: Recognize the beginning of header data, and read it.
- *                            Expects that the list command 'M' has been sent
+ * read_sentinel_response: Waits for the given start and then stores everything into the
+ *                         buffer until the wait byte is encountered. Expects that a command
+ *                         has already been sent
  **/
 
-bool read_sentinel_header_list(int fd, char** buffer) {
-    unsigned char header[3] = {0,0,0};
+bool read_sentinel_response(int fd, char** buffer, const char start[], int start_len) {
+    printf("%s: Called\n", __func__);
+    char slide_buf[start_len];
+    memset(slide_buf, 0, start_len);
     char buf[1] ={0};
 
     // Initialize the buffer
     *buffer = calloc(1, sizeof(char*));
 
+    printf("%s: Start string (%d): %s\n", __func__, start_len, start);
+
     int i = 0;
     int n = 0;
-    // Wait to receive the header packet for 20 cycles
+    // Wait to receive the start packet for 20 cycles
     while (( n == 0) &&
            (i < 20)) {
         printf("Waiting (%d) to get data from device buffer\n", i);
-        n = read(fd, header, sizeof(header));
+        // TODO: Should we really read start_len worth of data here? What if the read data
+        //       is a partial beginning of start-matcher?
+        n = read(fd, slide_buf, start_len);
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
         i++;
     }
 
     while ((n > 0) &&
-           (memcmp(header, SENTINEL_HEADER_SEPARATOR, sizeof(SENTINEL_HEADER_SEPARATOR)) != 0)) {
+           (memcmp(slide_buf, start, start_len) != 0)) {
         n = read(fd, buf, sizeof(buf));
-        header[0] = header[1];
-        header[1] = header[2];
-        header[2] = buf[0];
+        int j = 0;
+        while (j < (start_len - 1)) {
+            slide_buf[j] = slide_buf[j + 1];
+            j++;
+        }
+
+        slide_buf[j] = buf[0];
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
     }
 
-    const unsigned char dend[1] = {0x50};
     buf[0] = 0;
     i = 0;
 
-    while (memcmp(dend, buf, sizeof(dend)) != 0) {
+    while (memcmp(SENTINEL_WAIT_BYTE, buf, sizeof(SENTINEL_WAIT_BYTE)) != 0) {
         n = read(fd, buf, sizeof(buf));
 
         *buffer = resize_string(*buffer, strlen(*buffer) + 1);
@@ -221,31 +232,6 @@ bool read_sentinel_header_list(int fd, char** buffer) {
 }
 
 /**
- * read_sentinel_data; Waits for data from the given serial device and stores it in the given buffer
- **/
-
-bool read_sentinel_data(int fd, char** buffer) {
-    bool wait_bytes = true;
-
-    while (wait_bytes) {
-        int n = read(fd, buffer, 1);
-
-        if (n == -1) {
-            printf("ERROR: Unable to read any bytes from device\n");
-            return(false);
-        }
-
-        if (strncmp(*buffer, SENTINEL_WAIT_BYTE, 1) != 0) {
-            wait_bytes = false;
-        }
-
-        sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
-    }
-
-    return(true);
-}
-
-/**
  * disconnect_sentinel: Close the connection
  **/
 
@@ -262,8 +248,9 @@ bool disconnect_sentinel(int fd) {
  **/
 
 bool download_sentinel_header(int fd, char** buffer) {
+    printf("%s: Called\n", __func__);
     send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
-    if (!read_sentinel_header_list(fd, buffer)) {
+    if (!read_sentinel_response(fd, buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START))) {
         printf("ERROR: Failed to read header from Sentinel\n");
         return(false);
     }
@@ -282,6 +269,7 @@ bool download_sentinel_header(int fd, char** buffer) {
  **/
 
 bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
+    printf("%s: Called\n", __func__);
     char** h_lines = str_cut(buffer, SENTINEL_LINE_SEPARATOR); /* Cut it by lines */
 
     if (h_lines == NULL) {
@@ -675,6 +663,7 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
  **/
 
 bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
+    printf("%s: Called\n", __func__);
     /* Create and minimal allocation of the buffer */
     char* buffer;
     if (!download_sentinel_header(fd, &buffer)) {
@@ -683,8 +672,8 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
         return(false);
     }
 
-    // TODO: This is not working, for some reason SENTINEL_HEADER_SEPARATOR is longer (5) and has 2 newlines
-    // char** head_array = str_cut(buffer, SENTINEL_HEADER_SEPARATOR);
+    // TODO: This is not working, for some reason SENTINEL_HEADER_START is longer (5) and has 2 newlines
+    // char** head_array = str_cut(buffer, SENTINEL_HEADER_START);
     char** head_array = str_cut(&buffer, "d\r\n");
 
     if (head_array == NULL) {
@@ -952,7 +941,7 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
     bool res = send_sentinel_command(fd, &command, sizeof(command));
     if (!res) return(false);
 
-    if (!read_sentinel_header_list(fd, &buffer)) {
+    if (!read_sentinel_response(fd, &buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START))) {
         printf("%s: ERROR: Failed to read dive data from Sentinel\n", __func__);
         return(false);
     }

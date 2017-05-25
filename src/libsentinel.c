@@ -28,7 +28,7 @@
 int connect_sentinel(char* device) {
     int fd = open_sentinel_device(device);
     if (fd == 0) {
-        printf("ERROR: Could not open device: %s\n", device);
+        eprint("Could not open device: %s", device);
         return(0);
     }
 
@@ -60,9 +60,9 @@ int connect_sentinel(char* device) {
     options.c_oflag &= ~OPOST;
 
     if (tcsetattr( fd, TCSANOW, &options ) == -1)
-        printf ("ERROR: Unable to set tcsetattr\n");
+        eprint("%s", "Unable to set tcsetattr");
     else
-        printf ("%s: tcsetattr succeed\n", __func__);
+        dprint(true, "%s", "tcsetattr succeed");
 
     fcntl(fd, F_SETFL, FNDELAY);
 
@@ -125,7 +125,7 @@ bool is_sentinel_idle(int fd, const int tries) {
         m = memcmp(store_byte, expected, sizeof(expected));
 
         if (m == 0) {
-            if (flushed_bytes > 0) printf("%s: Flushed %d bytes from device buffer\n", __func__, flushed_bytes);
+            if (flushed_bytes > 0) dprint(true, "Flushed %d bytes from device buffer\n", flushed_bytes);
             return(true);
         }
 
@@ -142,7 +142,7 @@ bool is_sentinel_idle(int fd, const int tries) {
  **/
 
 bool send_sentinel_command(int fd, const void* command, size_t size) {
-    printf("%s: Called\n", __func__);
+    dprint(true, "%s", "Called");
     size_t nbytes = 0;
     char* buf = calloc(size + 1, sizeof(char));
     strncpy(buf, command, size);
@@ -151,7 +151,7 @@ bool send_sentinel_command(int fd, const void* command, size_t size) {
         size_t n = write(fd, (const char*) command + nbytes, size - nbytes);
 
         if (n < 1) {
-            printf("ERROR: write() of %lu bytes failed!\n", (size - nbytes));
+            eprint("write() of %lu bytes failed!\n", (size - nbytes));
             return(false);
         }
 
@@ -169,7 +169,7 @@ bool send_sentinel_command(int fd, const void* command, size_t size) {
  **/
 
 bool read_sentinel_response(int fd, char** buffer, const char start[], int start_len) {
-    printf("%s: Called\n", __func__);
+    dprint(true, "%s", "Called");
     char slide_buf[start_len];
     memset(slide_buf, 0, start_len);
     char buf[1] ={0};
@@ -177,14 +177,14 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
     // Initialize the buffer
     *buffer = calloc(1, sizeof(char*));
 
-    printf("%s: Start string (%d): %s\n", __func__, start_len, start);
+    dprint(true, "Start string (%d): %s", start_len, start);
 
     int i = 0;
     int n = 0;
     // Wait to receive the start packet for 20 cycles
     while (( n == 0) &&
            (i < 20)) {
-        printf("%s: Waiting (%d) to get data from device buffer\n", __func__, i);
+        dprint(true, "Waiting (%d) to get data from device buffer", i);
         // TODO: Should we really read start_len worth of data here? What if the read data
         //       is a partial beginning of start-matcher?
         n = read(fd, slide_buf, start_len);
@@ -208,7 +208,7 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
     buf[0] = 0;
     i = 0;
 
-    printf("%s: =================================================================\n", __func__);
+    dprint(true, "%s", "=================================================================");
     while (memcmp(buf, SENTINEL_WAIT_BYTE, sizeof(SENTINEL_WAIT_BYTE)) != 0) {
         n = read(fd, buf, sizeof(buf));
         printf("%c", buf[0]);
@@ -223,14 +223,14 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         i++;
     }
 
-    printf("\n");
-    printf("%s: Read bytes: %d\n", __func__, i);
-    printf("%s: #################################################################\n", __func__);
-    printf("%s: Buffer:\n%s\n", __func__, *buffer);
-    printf("%s: #################################################################\n", __func__);
+    dprint(true, "%s", "\n");
+    dprint(true, "Read bytes: %d", i);
+    dprint(true, "%s", "#################################################################");
+    dprint(true, "Buffer:\n%s", *buffer);
+    dprint(true, "%s", "#################################################################");
 
     if (buffer == NULL) {
-        printf("%s: Buffer is empty\n", __func__);
+        eprint("%s", "Buffer is empty");
         return(false);
     }
 
@@ -254,15 +254,15 @@ bool disconnect_sentinel(int fd) {
  **/
 
 bool download_sentinel_header(int fd, char** buffer) {
-    printf("%s: Called\n", __func__);
+    dprint(true, "%s", "Called");
     send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
     if (!read_sentinel_response(fd, buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START))) {
-        printf("ERROR: Failed to read header from Sentinel\n");
+        eprint("%s", "Failed to read header from Sentinel");
         return(false);
     }
 
     if (*buffer == NULL) {
-        printf("%s: Received NULL value as answer from device\n", __func__);
+        eprint("%s", "Received NULL value as answer from device");
         return(false);
     }
 
@@ -275,11 +275,11 @@ bool download_sentinel_header(int fd, char** buffer) {
  **/
 
 bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
-    printf("%s: Called\n", __func__);
+    dprint(true, "%s", "Called");
     char** h_lines = str_cut(buffer, SENTINEL_LINE_SEPARATOR); /* Cut it by lines */
 
     if (h_lines == NULL) {
-        printf("ERROR: Received empty header string.\n");
+        eprint("%s", "Received empty header string");
         return(false);
     }
 
@@ -309,7 +309,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -323,7 +323,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -337,7 +337,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -351,7 +351,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -364,7 +364,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -377,7 +377,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -390,7 +390,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -403,7 +403,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -416,7 +416,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -430,7 +430,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -444,7 +444,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -457,7 +457,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -470,7 +470,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -483,7 +483,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -515,11 +515,11 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
         }
         if (strncmp(h_lines[line_idx], "Dcellhealth ", 12) == 0) {
             char* tmp_ptr = h_lines[line_idx] + 12;
-            printf("%s: Looks like we found the health data for cell: %s\n", __func__, tmp_ptr);
+            dprint(true, "Looks like we found the health data for cell: %s", tmp_ptr);
             char** fields = str_cut(&tmp_ptr, ", ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -534,7 +534,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&tmp_ptr, ", ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -546,7 +546,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             (*header_struct)->gas[gas_idx].max_depth = atoi(fields[3]);
             (*header_struct)->gas[gas_idx].enabled = atoi(fields[4]);
             free_string_array(fields);
-            printf("Found the gas setting for gas# %d: %d/%d \n", gas_idx,
+            dprint(true, "Found the gas setting for gas# %d: %d/%d", gas_idx,
                    (*header_struct)->gas[gas_idx].o2, (*header_struct)->gas[gas_idx].he );
             line_idx++;
             continue;
@@ -556,7 +556,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             char** fields = str_cut(&tmp_ptr, ", ");
 
             if (fields == NULL) {
-                printf("ERROR: Received empty split list from: '%s'\n", h_lines[line_idx]);
+                eprint("Received empty split list from: '%s'", h_lines[line_idx]);
                 return(false);
             }
 
@@ -565,13 +565,13 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             (*header_struct)->tissue[tissue_idx].t1 = atoi(fields[1]);
             (*header_struct)->tissue[tissue_idx].t2 = atoi(fields[2]);
             free_string_array(fields);
-            printf("Found the tissue value for tissue_idx# %d: %d-%d \n", tissue_idx,
+            dprint(true, "Found the tissue value for tissue_idx# %d: %d-%d", tissue_idx,
                    (*header_struct)->tissue[tissue_idx].t1, (*header_struct)->tissue[tissue_idx].t2 );
             line_idx++;
             continue;
         }
 
-        printf("%s: Unknown field: '%s'\n", __func__, h_lines[line_idx]);
+        dprint(true, "Unknown field: '%s'", h_lines[line_idx]);
         line_idx++;
     }
 
@@ -596,11 +596,11 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
 
 bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr) {
     int buffer_size = strlen(linestr);
-    dprint(true, "Line length: %d\n", buffer_size);
+    dprint(true, "Line length: %d", buffer_size);
     char** log_field = str_cut(&linestr, ","); /* Cut it by comma */
 
     if (log_field == NULL) {
-        printf("ERROR: Received empty split list from: '%s'\n", linestr);
+        eprint("Received empty split list from: '%s'", linestr);
         return(false);
     }
 
@@ -635,9 +635,9 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
 
         if (tmp != NULL) {
             line->note = tmp;
-            // printf("%s: Reallocated to: (%d)\n", __func__, (int) strlen(*buffer));
+            // dprint(true, "Reallocated to: (%d)\n", (int) strlen(*buffer));
         } else {
-            printf("%s: Failed to reallocate buffer\n", __func__);
+            eprint("%s", "Failed to reallocate buffer");
             return(false);
         }
         // line->note = realloc(line->note, (note_idx + 1) * sizeof(sentinel_note_t));
@@ -666,11 +666,11 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
  **/
 
 bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
-    printf("%s: Called\n", __func__);
+    dprint(true, "%s", "Called");
     /* Create and minimal allocation of the buffer */
     char* buffer;
     if (!download_sentinel_header(fd, &buffer)) {
-        printf("ERROR: Failed to get the Sentinel header\n");
+        eprint("%s", "Failed to get the Sentinel header");
         free(buffer);
         return(false);
     }
@@ -680,7 +680,7 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
     char** head_array = str_cut(&buffer, "d\r\n");
 
     if (head_array == NULL) {
-        printf("ERROR: Received empty head array from: '%s'\n", buffer);
+        eprint("Received empty head array from: '%s'", buffer);
         return(false);
     }
 
@@ -693,20 +693,20 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
         *header_list = resize_sentinel_header_list(*header_list, header_idx + 1);
 
         if (*header_list == NULL) {
-            printf("%s: ERROR Failed to reallocate header_list\n", __func__);
+            eprint("%s", "Failed to reallocate header_list");
             return(false);
         }
 
         (*header_list)[header_idx] = alloc_sentinel_header();
 
         if ((*header_list)[header_idx] == NULL) {
-            printf("%s: ERROR Could not allocate memory for header struct (%d)\n", __func__, header_idx);
+            eprint("Could not allocate memory for header struct (%d)", header_idx);
             return(false);
         }
 
-        printf("%s: Parsing header: %d\n", __func__, header_idx);
+        dprint(true, "Parsing header: %d", header_idx);
         if (!parse_sentinel_header(&(*header_list)[header_idx], &head_array[header_idx])) {
-            printf("%s: ERROR: Failed parse the Sentinel header\n", __func__);
+            eprint("%s", "Failed parse the Sentinel header");
             return(false);
         }
 
@@ -828,13 +828,13 @@ sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_list, in
     }
 
     int new_size = list_size + 1;
-    printf("%s: Size of the old_list: %d\n", __func__, old_size);
-    printf("%s: Size of the new_list: %d\n", __func__, new_size);
+    dprint(true, "Size of the old_list: %d", old_size);
+    dprint(true, "Size of the new_list: %d", new_size);
 
     sentinel_header_t** new_list = realloc(old_list, new_size * sizeof(sentinel_header_t*));
 
     if (new_list == NULL) {
-        printf("%s: ERROR: Failed to reallocate header_list\n", __func__);
+        eprint("%s", "Failed to reallocate header_list");
         int j = 0;
 
         while (old_list[j] != NULL) {
@@ -923,7 +923,7 @@ bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
         note->type  = 20;
         note->description = "Valve issue detected";
     } else {
-        printf("Warning: Unknown note: '%s'\n", note_str);
+        eprint("Unknown note: '%s'", note_str);
     }
 
     return(note);
@@ -940,18 +940,18 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
     char* buffer;
 
     sprintf(command, "D%d", dive_num);
-    printf("%s: Send download command: '%s'\n", __func__, command);
+    dprint(true, "Send download command: '%s'", command);
     bool res = send_sentinel_command(fd, &command, sizeof(command));
     if (!res) return(false);
 
     if (!read_sentinel_response(fd, &buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START))) {
-        printf("%s: ERROR: Failed to read dive data from Sentinel\n", __func__);
+        eprint("%s", "Failed to read dive data from Sentinel");
         return(false);
     }
 
-    printf("%s: ======================================================================\n", __func__);
-    printf("%s\n", buffer);
-    printf("%s: ======================================================================\n", __func__);
+    dprint(true, "%s", "======================================================================");
+    dprint(true, "%s", buffer);
+    dprint(true, "%s", "======================================================================");
 
     free(buffer);
     return(res);
@@ -967,12 +967,12 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
 
 char** str_cut(char** orig_string, const char* delim) {
     if (orig_string == NULL) {
-        printf("%s: Original string is null, return null\n", __func__);
+        dprint(true, "%s", "Original string is null, return null");
         return(NULL);
     }
 
     if (delim == NULL || delim == 0) {
-        printf("%s: Delimiter is null, return null\n", __func__);
+        dprint(true, "%s", "Delimiter is null, return null");
         /* TODO: Should this actually return an array with each char is separated? */
         return(NULL);
     }
@@ -1040,7 +1040,7 @@ char* resize_string(char* old_str, int string_length) {
     char* new_str = calloc(string_length + 1, sizeof(char));
 
     if (new_str == NULL) {
-        printf("%s: ERROR: Unable to calloc string, return null\n", __func__);
+        eprint("%s", "Unable to calloc string, return null");
         return(NULL);
     }
 
@@ -1053,7 +1053,7 @@ char* resize_string(char* old_str, int string_length) {
     free(old_str);
 
     if (tmp == NULL) {
-        printf("%s: ERROR: Unable to strncpy the old string to the new\n", __func__);
+        eprint("%s", "Unable to strncpy the old string to the new");
         free(new_str);
         return(NULL);
     }
@@ -1143,7 +1143,7 @@ char* sentinel_to_utc_datestring(const int sentinel_time) {
     localtime_r(&t, &lt);
 
     if (strftime(outstr, str_length, format, &lt) == 0) {
-        fprintf(stderr, "strftime returned 0 for %d\n", sentinel_time);
+        eprint("strftime returned 0 for %d", sentinel_time);
         return(0);
     }
 
@@ -1176,7 +1176,7 @@ void sentinel_sleep(const int msecs) {
     while (nanosleep (&ts, &ts) != 0) {
         int errcode = errno;
         if (errcode != EINTR ) {
-            printf("%s: ERROR Something went wrong while nanosleeping\n", __func__);
+            eprint("%s", "Something went wrong while nanosleeping");
         }
     }
 }

@@ -43,8 +43,23 @@ static const char SENTINEL_LIST_CMD[1]  = {0x4d}; // d command to list the dive 
 static const char SENTINEL_WAIT_BYTE[1] = {0x50}; // P the rebreather prints this when it is waiting for a command
 static const char SENTINEL_HEADER_START[3] = {0x64,0x0d, 0x0a}; // d\r\n
 static const char SENTINEL_LINE_SEPARATOR[2] = {0x0d, 0x0a}; // \r\n
+
+/* Colors for printing */
+
+#define RESET "\x1B[0m"
+#define BOLD  "\x1B[1m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
+
 /* Macros */
-#define dprint(verbose, ...) ( verbose ? printf(__VA_ARGS__) : 0)
+#define dprint(verbose, format, ...) ( verbose ? printf(BOLD KYEL "DEBUG: %s: %s: %d:" RESET " " format "\n", __FILE__, __func__, __LINE__, __VA_ARGS__) : 0)
+
+#define eprint(format, ...) printf(BOLD KRED "ERROR: %s: %s: %d:" RESET " " format "\n", __FILE__, __func__, __LINE__, __VA_ARGS__)
 
 /* Structs */
 typedef struct sentinel_gas {
@@ -52,7 +67,7 @@ typedef struct sentinel_gas {
     int he; /* Helium percentage */
     int o2; /* O2 percentage, we calculate this from the previous two */
     long max_depth; /* Configured max depth for gas, originally given in decimeter */
-    int enabled; /* Whether the gas is enabledx */
+    int enabled; /* Whether the gas is enabled */
 } sentinel_gas_t;
 
 typedef struct sentinel_tissue {

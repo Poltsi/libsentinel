@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
             break;
         case 'v':
             verbose = true;
-            dprint(verbose, "Verbose set\n");
+            dprint(verbose, "%s", "Verbose set");
             break;
         case 'h': /* Print help and exit */
         default:
@@ -81,67 +81,67 @@ int main(int argc, char **argv) {
     /* Sanity checks on from and to dive number if they are other than default (0 and 0)*/
     if (from_dive || to_dive) {
         if (list_dives) {
-            printf("ERROR: Requesting both the list as well as downloading of dives is not supported. please choose either one\n");
+            eprint("%s", "Requesting both the list as well as downloading of dives is not supported. please choose either one");
             print_help();
             exit(1);
         }
         if (from_dive > to_dive) {
-            printf("ERROR: The start (%d) of the requested dive list is bigger than the end (%d) of the list, aborting\n", from_dive, to_dive);
+            eprint("The start (%d) of the requested dive list is bigger than the end (%d) of the list, aborting", from_dive, to_dive);
             print_help();
             exit(1);
         }
 
         if (from_dive < 0 || to_dive < 0) {
-            printf("ERROR: Either start (%d) of the requested dive list or the end (%d) of the requested dive list is less than zero, aborting\n", from_dive, to_dive);
+            eprint("Either start (%d) of the requested dive list or the end (%d) of the requested dive list is less than zero, aborting", from_dive, to_dive);
             print_help();
             exit(1);
         }
 
-        dprint(verbose, "Printing dives from %d to %d\n", from_dive, to_dive);
+        dprint(verbose, "Printing dives from %d to %d", from_dive, to_dive);
     }
 
     /* Is the device string empty */
     if (!strlen(device_name)) {
-        printf("ERROR: No device defined\n");
+        eprint("%s", "No device defined");
         print_help();
         exit(1);
     }
 
     struct stat sb;
 
-    dprint(verbose, "Testing whether we can stat device: %s\n", device_name);
+    dprint(verbose, "Testing whether we can stat device: %s", device_name);
     if (stat(device_name, &sb) == -1) {
-        printf("ERROR: Non-existing device: %s\n", device_name);
+        eprint("Non-existing device: %s", device_name);
         exit(1);
     }
 
-    dprint(verbose, "Testing whether we can get the type of device: %s\n", device_name);
+    dprint(verbose, "Testing whether we can get the type of device: %s", device_name);
 
     if ((sb.st_mode & S_IFMT) != S_IFCHR) {
-        printf("ERROR: Either device '%s' does not exist or it is not a character device, aborting\n", device_name);
+        eprint("Either device '%s' does not exist or it is not a character device, aborting", device_name);
         print_help();
         exit(1);
     }
 
-    dprint(verbose, "Opening the serial device: %s\n", device_name);
+    dprint(verbose, "Opening the serial device: %s", device_name);
     int fd = connect_sentinel(device_name);
 
     if (fd <= 0) {
-        printf("ERROR: Unable to connect to the device: %s\n", device_name);
+        eprint("Unable to connect to the device: %s", device_name);
         exit(1);
     }
 
     int tries = 20;
     if (!is_sentinel_idle(fd, tries)) {
-        printf("ERROR: Could not connect to Sentinel after %d tries, is Sentinel connected?\n", tries);
+        eprint("Could not connect to Sentinel after %d tries, is Sentinel connected?", tries);
         exit(1);
     }
 
-    printf("Connected to: %s\n", device_name);
+    dprint(verbose, "Connected to: %s", device_name);
     free(device_name);
 
     if (list_dives) {
-        dprint(verbose, "Printing the list of dives\n");
+        dprint(verbose, "%s", "Printing the list of dives");
         sentinel_header_t **header_list = NULL;
         bool res = get_sentinel_dive_list(fd, &header_list);
         disconnect_sentinel(fd);
@@ -149,34 +149,34 @@ int main(int argc, char **argv) {
         if (res && (header_list != NULL)) {
             int i = 0;
 
-            printf("######################################################################\n");
+            dprint(verbose, "%s", "######################################################################");
             while (header_list[i] != NULL) {
                 short_print_sentinel_header(i, header_list[i]);
                 i++;
             }
 
-            printf("######################################################################\n");
+            dprint(verbose, "%s", "######################################################################");
         }
 
         if (header_list != NULL) free_sentinel_header_list(header_list);
     } else {
         // Download all dives
         // First, get the list of dive headers
-        dprint(verbose, "Get the list of dives\n");
+        dprint(verbose, "%s", "Get the list of dives");
         sentinel_header_t **header_list = NULL;
         bool res = get_sentinel_dive_list(fd, &header_list);
         // Next download each dive data
         if (res && (header_list != NULL)) {
             int i = from_dive;
 
-            printf("######################################################################\n");
+            dprint(verbose, "%s", "######################################################################");
             while (header_list[i] != NULL && i <= to_dive) {
-                printf("Downloading dive number: %d\n", i);
+                dprint(verbose, "Downloading dive number: %d", i);
                 download_sentinel_dive(fd, i, &header_list[i]);
                 i++;
             }
 
-            printf("######################################################################\n");
+            dprint(verbose, "%s", "######################################################################");
         }
 
         disconnect_sentinel(fd);
@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
         if (header_list != NULL) free_sentinel_header_list(header_list);
     }
 
-    dprint(verbose, "Printing dives from %d to %d\n", from_dive, to_dive);
-    printf("%s: Task completed\n", __func__);
+    dprint(verbose, "Printing dives from %d to %d", from_dive, to_dive);
+    dprint(verbose, "%s", "Task completed");
     exit(0);
 }

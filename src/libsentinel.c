@@ -62,7 +62,7 @@ int connect_sentinel(char* device) {
     if (tcsetattr( fd, TCSANOW, &options ) == -1)
         printf ("ERROR: Unable to set tcsetattr\n");
     else
-        printf ("%s\n", "tcsetattr succeed");
+        printf ("%s: tcsetattr succeed\n", __func__);
 
     fcntl(fd, F_SETFL, FNDELAY);
 
@@ -125,7 +125,7 @@ bool is_sentinel_idle(int fd, const int tries) {
         m = memcmp(store_byte, expected, sizeof(expected));
 
         if (m == 0) {
-            if (flushed_bytes > 0) printf("Flushed %d bytes from device buffer\n", flushed_bytes);
+            if (flushed_bytes > 0) printf("%s: Flushed %d bytes from device buffer\n", __func__, flushed_bytes);
             return(true);
         }
 
@@ -184,7 +184,7 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
     // Wait to receive the start packet for 20 cycles
     while (( n == 0) &&
            (i < 20)) {
-        printf("Waiting (%d) to get data from device buffer\n", i);
+        printf("%s: Waiting (%d) to get data from device buffer\n", __func__, i);
         // TODO: Should we really read start_len worth of data here? What if the read data
         //       is a partial beginning of start-matcher?
         n = read(fd, slide_buf, start_len);
@@ -208,8 +208,10 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
     buf[0] = 0;
     i = 0;
 
-    while (memcmp(SENTINEL_WAIT_BYTE, buf, sizeof(SENTINEL_WAIT_BYTE)) != 0) {
+    printf("%s: =================================================================\n", __func__);
+    while (memcmp(buf, SENTINEL_WAIT_BYTE, sizeof(SENTINEL_WAIT_BYTE)) != 0) {
         n = read(fd, buf, sizeof(buf));
+        printf("%c", buf[0]);
 
         *buffer = resize_string(*buffer, strlen(*buffer) + 1);
         if (*buffer == NULL) return(false);
@@ -221,7 +223,11 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         i++;
     }
 
-    printf("Read bytes: %d\n", i);
+    printf("\n");
+    printf("%s: Read bytes: %d\n", __func__, i);
+    printf("%s: #################################################################\n", __func__);
+    printf("%s: Buffer:\n%s\n", __func__, *buffer);
+    printf("%s: #################################################################\n", __func__);
 
     if (buffer == NULL) {
         printf("%s: Buffer is empty\n", __func__);
@@ -314,7 +320,6 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
         }
 
         if (strncmp(h_lines[line_idx], "Start ", 6) == 0) {
-            printf("It is a time start-field! Let's split it up by spaces\n");
             char** fields = str_cut(&h_lines[line_idx], " ");
 
             if (fields == NULL) {
@@ -322,9 +327,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
                 return(false);
             }
 
-            printf("Create unix timestamp of: '%s'\n", fields[2]);
             (*header_struct)->start_s = sentinel_to_unix_timestamp(atoi(fields[2]));
-            printf("Create datetime\n");
             (*header_struct)->start_time = sentinel_to_utc_datestring(atoi(fields[2]));
             free_string_array(fields);
             line_idx++;
@@ -568,7 +571,7 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             continue;
         }
 
-        printf("Unknown field: '%s'\n", h_lines[line_idx]);
+        printf("%s: Unknown field: '%s'\n", __func__, h_lines[line_idx]);
         line_idx++;
     }
 

@@ -257,7 +257,7 @@ sub printToDevice
     my $ob   = $_[ 0 ];
     my $data = $_[ 1 ];
 
-    print( "printToDevice: Called with data length: " . length( $data ) . "\n" );
+    #print( "printToDevice: Called with data length: " . length( $data ) . "\n" );
     my $offset = 0;
 
     for my $char ( unpack '(a1)*', $data )
@@ -273,11 +273,11 @@ sub printToDevice
         {
             if( $count_out != length( $char ) )
             {
-                warn( "WARING: Chunk write incomplete after " . $offset . " writes\n" );
+                warn( "WARNING: Chunk write incomplete after " . $offset . " writes\n" );
                 last;
             }
         }
-        sleep( 0.4 );
+        sleep( 0.6 );
         $offset++;
     }
 

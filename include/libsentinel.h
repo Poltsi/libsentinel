@@ -43,6 +43,7 @@ static const char SENTINEL_LIST_CMD[1]  = {0x4d}; // d command to list the dive 
 static const char SENTINEL_WAIT_BYTE[1] = {0x50}; // P the rebreather prints this when it is waiting for a command
 static const char SENTINEL_HEADER_START[3] = {0x64,0x0d, 0x0a}; // d\r\n
 static const char SENTINEL_LINE_SEPARATOR[2] = {0x0d, 0x0a}; // \r\n
+static const char SENTINEL_PROFILE_END[5] = {0x45, 0x6f, 0x64, 0x0d, 0x0a}; // \r\n
 
 /* Colors for printing */
 

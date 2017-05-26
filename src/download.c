@@ -134,6 +134,7 @@ int main(int argc, char **argv) {
     int tries = 20;
     if (!is_sentinel_idle(fd, tries)) {
         eprint("Could not connect to Sentinel after %d tries, is Sentinel connected?", tries);
+        disconnect_sentinel(fd);
         exit(1);
     }
 

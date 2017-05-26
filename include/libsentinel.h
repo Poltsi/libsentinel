@@ -43,7 +43,7 @@ static const char SENTINEL_LIST_CMD[1]  = {0x4d}; // d command to list the dive 
 static const char SENTINEL_WAIT_BYTE[1] = {0x50}; // P the rebreather prints this when it is waiting for a command
 static const char SENTINEL_HEADER_START[3] = {0x64,0x0d, 0x0a}; // d\r\n
 static const char SENTINEL_LINE_SEPARATOR[2] = {0x0d, 0x0a}; // \r\n
-static const char SENTINEL_PROFILE_END[5] = {0x45, 0x6f, 0x64, 0x0d, 0x0a}; // End\r\n
+static const char SENTINEL_PROFILE_END[5] = {0x45, 0x6e, 0x64, 0x0d, 0x0a}; // End\r\n
 
 /* Colors for printing */
 
@@ -175,7 +175,7 @@ extern bool send_sentinel_command(int fd, const void* command, size_t size);
 extern bool read_sentinel_header_list(int fd, char** buffer);
 extern bool download_sentinel_header(int fd, char** buffer);
 extern bool disconnect_sentinel(int fd);
-extern bool read_sentinel_response(int fd, char** buffer, const char* start, int start_len);
+extern bool read_sentinel_response(int fd, char** buffer, const char* start, int start_len, const char end[], int end_len);
 extern bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer);
 extern bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list);
 extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr);
@@ -197,4 +197,5 @@ void sentinel_sleep(const int msecs);
 char* resize_string(char* old_str, int len);
 char** resize_string_array(char** old_arr, int len);
 void free_string_array(char** str_arr);
+char* restring(const char* old_str, const int old_len);
 #endif  // LIBSENTINEL_H

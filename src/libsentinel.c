@@ -168,16 +168,23 @@ bool send_sentinel_command(int fd, const void* command, size_t size) {
  *                         has already been sent
  **/
 
-bool read_sentinel_response(int fd, char** buffer, const char start[], int start_len) {
+bool read_sentinel_response(int fd, char** buffer, const char start[], int start_len, const char end[], int end_len) {
     dprint(true, "%s", "Called");
-    char slide_buf[start_len];
-    memset(slide_buf, 0, start_len);
+
+    char slide_start[start_len];
+    memset(slide_start, 0, start_len);
+
+    char slide_end[end_len];
+    memset(slide_end, 0, end_len);
+
     char buf[1] ={0};
 
-    // Initialize the buffer
-    *buffer = calloc(1, sizeof(char*));
+    // We use these only for printout
+    char* start_str = restring(start, start_len);
+    char* end_str = restring(end, end_len);
 
-    dprint(true, "Start string (%d): %s", start_len, start);
+    dprint(true, "Start string (%d): %s", start_len, start_str);
+    dprint(true, "End string (%d): %s", end_len, end_str);
 
     int i = 0;
     int n = 0;
@@ -187,21 +194,21 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         dprint(true, "Waiting (%d) to get data from device buffer", i);
         // TODO: Should we really read start_len worth of data here? What if the read data
         //       is a partial beginning of start-matcher?
-        n = read(fd, slide_buf, start_len);
+        n = read(fd, slide_start, start_len);
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
         i++;
     }
 
     while ((n > 0) &&
-           (memcmp(slide_buf, start, start_len) != 0)) {
+           (memcmp(slide_start, start, start_len) != 0)) {
         n = read(fd, buf, sizeof(buf));
         int j = 0;
         while (j < (start_len - 1)) {
-            slide_buf[j] = slide_buf[j + 1];
+            slide_start[j] = slide_start[j + 1];
             j++;
         }
 
-        slide_buf[j] = buf[0];
+        slide_start[j] = buf[0];
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
     }
 
@@ -209,15 +216,35 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
     i = 0;
 
     dprint(true, "%s", "=================================================================");
-    while (memcmp(buf, SENTINEL_WAIT_BYTE, sizeof(SENTINEL_WAIT_BYTE)) != 0) {
+
+    // Initialize the buffer so that it fits at least the end string
+    *buffer = calloc(1, sizeof(char*));
+    *buffer = resize_string(*buffer, end_len);
+    // Then we read in end_len bytes from the device
+    n = read(fd, *buffer, end_len);
+
+    int m = memcmp(*buffer + strlen(*buffer) - end_len, end, end_len);
+
+    while (m != 0) {
         n = read(fd, buf, sizeof(buf));
-        printf("%c", buf[0]);
+        //printf("%c", buf[0]);
 
         *buffer = resize_string(*buffer, strlen(*buffer) + 1);
         if (*buffer == NULL) return(false);
 
         strncpy(*buffer + i, buf, 1);
         if (*buffer == NULL) return(false);
+
+        m = memcmp(*buffer + strlen(*buffer) - end_len, end, end_len);
+        char* tmp_str = restring(*buffer + strlen(*buffer) - end_len, end_len);
+        dprint(true, "Compared (%d) '%s' to '%s'", m, tmp_str, end_str);
+        free(tmp_str);
+        // Let's do a sanity check, in case the transmission is not correct
+        if (m != 0 && i > 3 &&
+            memcmp(*buffer + strlen(*buffer) - 3, "PPP", 3) == 0) {
+            eprint("Somehow we missed the end string (%s) and see a lot of wait bytes", end_str);
+            break;
+        }
 
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
         i++;
@@ -228,6 +255,9 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
     dprint(true, "%s", "#################################################################");
     dprint(true, "Buffer:\n%s", *buffer);
     dprint(true, "%s", "#################################################################");
+
+    free(start_str);
+    free(end_str);
 
     if (buffer == NULL) {
         eprint("%s", "Buffer is empty");
@@ -256,7 +286,8 @@ bool disconnect_sentinel(int fd) {
 bool download_sentinel_header(int fd, char** buffer) {
     dprint(true, "%s", "Called");
     send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
-    if (!read_sentinel_response(fd, buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START))) {
+    if (!read_sentinel_response(fd, buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START),
+                                SENTINEL_WAIT_BYTE, sizeof(SENTINEL_WAIT_BYTE))) {
         eprint("%s", "Failed to read header from Sentinel");
         return(false);
     }
@@ -944,7 +975,8 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
     bool res = send_sentinel_command(fd, &command, sizeof(command));
     if (!res) return(false);
 
-    if (!read_sentinel_response(fd, &buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START))) {
+    if (!read_sentinel_response(fd, &buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START),
+                                SENTINEL_PROFILE_END, sizeof(SENTINEL_PROFILE_END))) {
         eprint("%s", "Failed to read dive data from Sentinel");
         return(false);
     }
@@ -1179,4 +1211,40 @@ void sentinel_sleep(const int msecs) {
             eprint("%s", "Something went wrong while nanosleeping");
         }
     }
+}
+
+/**
+ * restring: Takes a string and its length, and returns another string which has all \r \n and \t typed out
+ **/
+
+char* restring(const char* old_str, const int old_len) {
+    // Just initialize the new string
+    char* new_str = calloc(1, sizeof(char));
+
+    int i = 0;
+    int j = 0;
+
+    while (i < old_len) {
+        if (strncmp(old_str + i, "\n", 1) == 0) {
+            new_str = resize_string(new_str, strlen(new_str) + 2);
+            strncpy(new_str + j, "\\n", 2);
+            j += 2;
+        } else if (strncmp(old_str + i, "\r", 1) == 0) {
+            new_str = resize_string(new_str, strlen(new_str) + 2);
+            strncpy(new_str + j, "\\r", 2);
+            j += 2;
+        } else if (strncmp(old_str + i, "\t", 1) == 0) {
+            new_str = resize_string(new_str, strlen(new_str) + 2);
+            strncpy(new_str + j, "\\t", 2);
+            j += 2;
+        } else {
+            new_str = resize_string(new_str, strlen(new_str) + 1);
+            strncpy(new_str + j, old_str + i, 1);
+            j++;
+        }
+
+        i++;
+    }
+
+    return(new_str);
 }

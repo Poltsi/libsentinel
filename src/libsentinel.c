@@ -87,6 +87,11 @@ int connect_sentinel(char* device) {
 
     fcntl(fd, F_SETFL, FNDELAY);
 
+    int value = TIOCM_RTS;
+    if (ioctl (fd, TIOCMBIS, &value) != 0) {
+        eprint("%s", "Unable to set RTS line");
+    }
+
     return(fd);
 }
 

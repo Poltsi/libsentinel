@@ -15,7 +15,8 @@ The emulator has been tested on Fedora 23/24/25, as well as Ubuntu 16.10 and 17.
 Start socat with the following command:
 
 ```
-socat -d -d -d pty,b9600,echo=1,raw,csize=3,ispeed=9600,ospeed=9600,user=poltsi pty,b9600,echo=1,raw,csize=3,ispeed=9600,ospeed=9600,user=<your username>
+socat -d -d -d pty,b9600,echo=1,raw,csize=3,ispeed=9600,ospeed=9600,user=<your username> \
+               pty,b9600,echo=1,raw,csize=3,ispeed=9600,ospeed=9600,user=<your username>
 ```
 
 Note that you need to replace the username in the command above

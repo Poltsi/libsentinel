@@ -89,9 +89,10 @@ int connect_sentinel(char* device) {
 
     int value = TIOCM_RTS;
     if (ioctl (fd, TIOCMBIS, &value) != 0) {
-        eprint("%s", "Unable to set RTS line");
+        eprint("%s", "Unable to set RTS line, are you running against the emulator?");
     }
 
+    sentinel_sleep(500);
     return(fd);
 }
 
@@ -111,6 +112,7 @@ int open_sentinel_device(char* device) {
     } else
         fcntl(fd, F_SETFL, FNDELAY);
 
+    sentinel_sleep(500);
     return (fd);
 }
 
@@ -147,6 +149,8 @@ bool is_sentinel_idle(int fd, const int tries) {
 
             /* We reset the tries as this is really flushing the buffer */
             i = tries;
+        } else {
+            dprint(true, "Failed (%d) to read the serial device with return value: %d", i, m);
         }
 
         flushed_bytes += n;
@@ -157,7 +161,7 @@ bool is_sentinel_idle(int fd, const int tries) {
             return(true);
         }
 
-        sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
+        sentinel_sleep(500);
 
         i--;
     }
@@ -216,7 +220,7 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
 
     int i = 0;
     int n = 0;
-    // Wait to receive the start packet for 20 cycles
+    // Wait to receive the start packet for 20 cycles or as long as we get the wait byte
     while (( n == 0) &&
            (i < 20)) {
         dprint(true, "Waiting (%d) to get data from device buffer", i);
@@ -224,38 +228,56 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         //       is a partial beginning of start-matcher?
         n = read(fd, slide_start, start_len);
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
-        i++;
+
+        if (strncmp("PPP", slide_start, 3) == 0) {
+            dprint(true, "Receiving wait bytes: %s", slide_start);
+            i++;
+        }
     }
 
     while ((n > 0) &&
            (memcmp(slide_start, start, start_len) != 0)) {
         n = read(fd, buf, sizeof(buf));
         int j = 0;
+
         while (j < (start_len - 1)) {
             slide_start[j] = slide_start[j + 1];
             j++;
         }
 
         slide_start[j] = buf[0];
+        dprint(true, "Flushing: %s", slide_start);
+
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
     }
 
-    buf[0] = 0;
-    i = 0;
-
     dprint(true, "%s", "=================================================================");
 
+    // TODO: Make sure the buffer is not already initialized
     // Initialize the buffer so that it fits at least the end string
-    *buffer = calloc(1, sizeof(char*));
-    *buffer = resize_string(*buffer, end_len);
+    *buffer = calloc(2, sizeof(char*));
+    // Copy whatever we last read from the device to the buffer, otherwise we lose the first char
+    strncpy(*buffer, buf, 1);
+    *buffer = resize_string(*buffer, end_len + 1);
     // Then we read in end_len bytes from the device
     n = read(fd, *buffer, end_len);
 
     int m = memcmp(*buffer + strlen(*buffer) - end_len, end, end_len);
 
+    // We need to advance the index, otherwise we will overwrite the beginning of the buffer
+    i = strlen(*buffer);
+    char* foo_str = restring(*buffer + i - end_len, end_len);
+    dprint(true, "Initial (%d - %d) '%s' to '%s'", m, n, foo_str, end_str);
+    free(foo_str);
+
     while (m != 0) {
         n = read(fd, buf, sizeof(buf));
-        //printf("%c", buf[0]);
+
+        if (n < 0) {
+            sentinel_sleep(50);
+            dprint(true, "%s", "Sleeping");
+            continue;
+        }
 
         *buffer = resize_string(*buffer, strlen(*buffer) + 1);
         if (*buffer == NULL) return(false);
@@ -265,12 +287,15 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
 
         m = memcmp(*buffer + strlen(*buffer) - end_len, end, end_len);
         char* tmp_str = restring(*buffer + strlen(*buffer) - end_len, end_len);
-        dprint(true, "Compared (%d) '%s' to '%s'", m, tmp_str, end_str);
+        dprint(true, "Compared (%d - %d) '%s' to '%s'", m, n, tmp_str, end_str);
         free(tmp_str);
         // Let's do a sanity check, in case the transmission is not correct
+        // TODO: Handle out of rebreather memory
+        // if it starts to print out ,,, then we seem to be out of memory on the rebreather
         if (m != 0 && i > 3 &&
-            memcmp(*buffer + strlen(*buffer) - 3, "PPP", 3) == 0) {
-            eprint("Somehow we missed the end string (%s) and see a lot of wait bytes", end_str);
+            ((memcmp(*buffer + strlen(*buffer) - 3, "PPP", 3) == 0) ||
+             (memcmp(*buffer + strlen(*buffer) - 3, ",,,", 3) == 0))) {
+            eprint("Somehow we missed the end string (%s) and see a lot of wait bytes or end-of-memory", end_str);
             break;
         }
 
@@ -278,7 +303,6 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         i++;
     }
 
-    dprint(true, "%s", "\n");
     dprint(true, "Read bytes: %d", i);
     dprint(true, "%s", "#################################################################");
     dprint(true, "Buffer:\n%s", *buffer);
@@ -315,7 +339,7 @@ bool download_sentinel_header(int fd, char** buffer) {
     dprint(true, "%s", "Called");
     send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
     if (!read_sentinel_response(fd, buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START),
-                                SENTINEL_WAIT_BYTE, sizeof(SENTINEL_WAIT_BYTE))) {
+                                SENTINEL_PROFILE_END, sizeof(SENTINEL_PROFILE_END))) {
         eprint("%s", "Failed to read header from Sentinel");
         return(false);
     }
@@ -1008,10 +1032,6 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
         eprint("%s", "Failed to read dive data from Sentinel");
         return(false);
     }
-
-    dprint(true, "%s", "======================================================================");
-    dprint(true, "%s", buffer);
-    dprint(true, "%s", "======================================================================");
 
     free(buffer);
     return(res);

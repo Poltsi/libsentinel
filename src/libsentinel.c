@@ -157,7 +157,7 @@ bool is_sentinel_idle(int fd, const int tries) {
         m = memcmp(store_byte, expected, sizeof(expected));
 
         if (m == 0) {
-            if (flushed_bytes > 0) dprint(true, "Flushed %d bytes from device buffer\n", flushed_bytes);
+            if (flushed_bytes > 0) dprint(true, "Flushed %d bytes from device buffer", flushed_bytes);
             return(true);
         }
 
@@ -230,7 +230,7 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
 
         if (strncmp("PPP", slide_start, 3) == 0) {
-            dprint(true, "Receiving wait bytes: %s", slide_start);
+            dprint(true, "%s", "Receiving wait bytes");
             i++;
         }
     }
@@ -246,7 +246,7 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         }
 
         slide_start[j] = buf[0];
-        dprint(true, "Flushing: %s", slide_start);
+        dprint(true, "%s", "Flushing");
 
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
     }
@@ -266,9 +266,6 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
 
     // We need to advance the index, otherwise we will overwrite the beginning of the buffer
     i = strlen(*buffer);
-    char* foo_str = restring(*buffer + i - end_len, end_len);
-    dprint(true, "Initial (%d - %d) '%s' to '%s'", m, n, foo_str, end_str);
-    free(foo_str);
 
     while (m != 0) {
         n = read(fd, buf, sizeof(buf));
@@ -286,11 +283,7 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         if (*buffer == NULL) return(false);
 
         m = memcmp(*buffer + strlen(*buffer) - end_len, end, end_len);
-        char* tmp_str = restring(*buffer + strlen(*buffer) - end_len, end_len);
-        dprint(true, "Compared (%d - %d) '%s' to '%s'", m, n, tmp_str, end_str);
-        free(tmp_str);
         // Let's do a sanity check, in case the transmission is not correct
-        // TODO: Handle out of rebreather memory
         // if it starts to print out ,,, then we seem to be out of memory on the rebreather
         if (m != 0 && i > 3 &&
             ((memcmp(*buffer + strlen(*buffer) - 3, "PPP", 3) == 0) ||

@@ -38,7 +38,7 @@
 /* Constants */
 #define SENTINEL_TIME_START 694137600
 static const char default_format[] = "%F %T %Z%z";
-static const int SENTINEL_LOOP_SLEEP_MS = 50;
+static const int SENTINEL_LOOP_SLEEP_MS = 5;
 /* Commands */
 static const char SENTINEL_LIST_CMD[1]  = {0x4d}; // d command to list the dive headers
 static const char SENTINEL_WAIT_BYTE[1] = {0x50}; // P the rebreather prints this when it is waiting for a command

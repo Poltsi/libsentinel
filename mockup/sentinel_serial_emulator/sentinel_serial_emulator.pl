@@ -192,6 +192,8 @@ sub printDiveEntries
         $idx++;
     }
 
+    # Last line should be End\r\n
+    $payload .= "End\r\n";
     &printToDevice( $ob, $payload );
 
     return();

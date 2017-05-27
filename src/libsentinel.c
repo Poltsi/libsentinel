@@ -1019,6 +1019,10 @@ bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
 
 bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_item) {
     int cmd_size = (int) log10(dive_num) + 2;
+
+    if (dive_num == 0)
+        cmd_size = 2;
+
     char command[cmd_size];
     char* buffer;
 

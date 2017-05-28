@@ -98,7 +98,7 @@ typedef struct sentinel_dive_log_line {
     long cell_o2[3]; /* pO2-reading for each cell */
     long setpoint; /* Converted from hectobar to bar */
     int ceiling; /* Decompression ceiling, m*/
-    sentinel_note_t** note; /* Info, warning and alerts, can be max 3 per log line */
+    sentinel_note_t note[4]; /* Info, warning and alerts, can be max 3 per log line, last in array is always null */
     long tempstick_value[8]; /* Converted from decicelsius, there are 8 sensors along the tempstick */
     long co2; /* Converted from millibar to bar */
 } sentinel_dive_log_line_t;
@@ -173,20 +173,23 @@ extern int connect_sentinel(char* devicex);
 extern int open_sentinel_device(char* device);
 extern bool is_sentinel_idle(int fd, const int tries);
 extern bool send_sentinel_command(int fd, const void* command, size_t size);
-extern bool read_sentinel_header_list(int fd, char** buffer);
-extern bool download_sentinel_header(int fd, char** buffer);
-extern bool disconnect_sentinel(int fd);
 extern bool read_sentinel_response(int fd, char** buffer, const char* start, int start_len, const char end[], int end_len);
+extern bool disconnect_sentinel(int fd);
+extern bool download_sentinel_header(int fd, char** buffer);
 extern bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer);
-extern bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list);
 extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr);
-extern bool get_sentinel_note(char* note_str, sentinel_note_t* note);
+extern bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list);
 extern sentinel_header_t* alloc_sentinel_header(void);
-extern sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_list, int list_size);
 extern void free_sentinel_header(sentinel_header_t* header);
-extern void free_sentinel_header_list(sentinel_header_t** h_list);
+extern void free_sentinel_log(sentinel_dive_log_line_t* log);
 extern void print_sentinel_header(sentinel_header_t* header);
 extern void short_print_sentinel_header(int number, sentinel_header_t* header);
+extern sentinel_dive_log_line_t** resize_sentinel_log_list(sentinel_dive_log_line_t** old_list, int list_size);
+extern sentinel_dive_log_line_t* alloc_sentinel_dive_log_line(void);
+extern void free_sentinel_dive_log_list(sentinel_dive_log_line_t** old_list);
+extern sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_list, int list_size);
+extern void free_sentinel_header_list(sentinel_header_t** h_list);
+extern bool get_sentinel_note(char* note_str, sentinel_note_t* note);
 extern bool download_sentinel_dive(int device, int dive_num, sentinel_header_t** header_item);
 
 /* Internal functions */

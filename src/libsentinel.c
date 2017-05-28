@@ -352,7 +352,7 @@ bool download_sentinel_header(int fd, char** buffer) {
 
 bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
     dprint(true, "%s", "Called");
-    char** h_lines = str_cut(buffer, SENTINEL_LINE_SEPARATOR); /* Cut it by lines */
+    char** h_lines = str_cut(buffer, "\r\n"); /* Cut it by lines */
 
     if (h_lines == NULL) {
         eprint("%s", "Received empty header string");
@@ -706,31 +706,24 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
     field_idx = 16;
     int note_idx = 0;
 
-    while (strncmp(log_field[field_idx], "S", 1) != 0) {
-        sentinel_note_t** tmp = realloc(line->note, (note_idx + 1) * sizeof(sentinel_note_t));
-
-        if (tmp != NULL) {
-            line->note = tmp;
-            // dprint(true, "Reallocated to: (%d)\n", (int) strlen(*buffer));
-        } else {
-            eprint("%s", "Failed to reallocate buffer");
-            return(false);
-        }
-        // line->note = realloc(line->note, (note_idx + 1) * sizeof(sentinel_note_t));
-        get_sentinel_note(log_field[field_idx], line->note[note_idx]);
+    while (log_field[field_idx] != NULL && strncmp(log_field[field_idx], "S", 1) != 0) {
+        get_sentinel_note(log_field[field_idx], &(line)->note[note_idx]);
         note_idx++;
         field_idx++;
     }
 
-    line->tempstick_value[0]  = atoi(log_field[field_idx++] + 1) / 10.0;
-    line->tempstick_value[1]  = atoi(log_field[field_idx++] + 1) / 10.0;
-    line->tempstick_value[2]  = atoi(log_field[field_idx++] + 1) / 10.0;
-    line->tempstick_value[3]  = atoi(log_field[field_idx++] + 1) / 10.0;
-    line->tempstick_value[4]  = atoi(log_field[field_idx++] + 1) / 10.0;
-    line->tempstick_value[5]  = atoi(log_field[field_idx++] + 1) / 10.0;
-    line->tempstick_value[6]  = atoi(log_field[field_idx++] + 1) / 10.0;
-    line->tempstick_value[7]  = atoi(log_field[field_idx++] + 1) / 10.0;
-    line->co2                 = atoi(log_field[field_idx + 2] + 1);
+    // Only if we have these fields
+    if (log_field[field_idx] != NULL) {
+        line->tempstick_value[0]  = atoi(log_field[field_idx++] + 1) / 10.0;
+        line->tempstick_value[1]  = atoi(log_field[field_idx++] + 1) / 10.0;
+        line->tempstick_value[2]  = atoi(log_field[field_idx++] + 1) / 10.0;
+        line->tempstick_value[3]  = atoi(log_field[field_idx++] + 1) / 10.0;
+        line->tempstick_value[4]  = atoi(log_field[field_idx++] + 1) / 10.0;
+        line->tempstick_value[5]  = atoi(log_field[field_idx++] + 1) / 10.0;
+        line->tempstick_value[6]  = atoi(log_field[field_idx++] + 1) / 10.0;
+        line->tempstick_value[7]  = atoi(log_field[field_idx++] + 1) / 10.0;
+        line->co2                 = atoi(log_field[field_idx + 2] + 1);
+    }
 
     free_string_array(log_field);
 
@@ -827,6 +820,18 @@ void free_sentinel_header(sentinel_header_t* header) {
 }
 
 /**
+ * free_sentinel_log: Frees the memory of a given header struct. This will free
+ *                      all the dynamically assigned member values too
+ **/
+
+void free_sentinel_log(sentinel_dive_log_line_t* log) {
+    if (log != NULL) {
+        if (log->time_string != NULL) free(log->time_string);
+        free(log);
+    }
+}
+
+/**
  * print_sentinel_header: Prints out to std the header data, one item per line
  **/
 
@@ -887,6 +892,79 @@ void short_print_sentinel_header(int number, sentinel_header_t* header) {
 }
 
 /**
+ * resize_sentinel_log_list: Manages the resizing of an sentinel_dive_log_line_t array
+ **/
+
+sentinel_dive_log_line_t** resize_sentinel_log_list(sentinel_dive_log_line_t** old_list, int list_size) {
+    // Let's first get a count of the old list
+    int i = 0;
+
+    int old_size = 0;
+    if (old_list != NULL) {
+        while (old_list[i] != NULL) {
+            i++;
+        }
+
+        old_size = i + 1;
+    }
+
+    int new_size = list_size + 1;
+    dprint(true, "Size of the old log list: %d", old_size);
+    dprint(true, "Size of the new log list: %d", new_size);
+
+    sentinel_dive_log_line_t** new_list = realloc(old_list, new_size * sizeof(sentinel_dive_log_line_t*));
+
+    if (new_list == NULL) {
+        eprint("%s", "Failed to reallocate log list");
+        int j = 0;
+
+        while (old_list[j] != NULL) {
+            free(old_list[j]);
+        }
+
+        free(old_list);
+        return(NULL);
+    }
+
+    new_list[list_size] = NULL;
+
+    return(new_list);
+}
+
+/**
+ * alloc_sentinel_dive_log_line: Returns an allocated memory structure for log line
+ *                               This will not allocate the member values
+ **/
+
+sentinel_dive_log_line_t* alloc_sentinel_dive_log_line(void) {
+    sentinel_dive_log_line_t* tmp = malloc(sizeof(sentinel_dive_log_line_t));
+
+    if (tmp == NULL)
+        return(NULL);
+
+    return(tmp);
+}
+
+
+
+/**
+ * free_sentinel_dive_log_list: Goes through the given log list and frees each item
+ * c                            separately
+ **/
+
+void free_sentinel_dive_log_list(sentinel_dive_log_line_t** old_list) {
+    int i = 0;
+
+    while (old_list[i] != NULL) {
+        free_sentinel_log(old_list[i]);
+        i++;
+    }
+
+    free(old_list);
+}
+
+
+/**
  * resize_sentinel_header_list: Manages the resizing of an sentinel_header_t array
  **/
 
@@ -911,13 +989,8 @@ sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_list, in
 
     if (new_list == NULL) {
         eprint("%s", "Failed to reallocate header_list");
-        int j = 0;
 
-        while (old_list[j] != NULL) {
-            free(old_list[j]);
-        }
-
-        free(old_list);
+        free_sentinel_header_list(old_list);
         return(NULL);
     }
 
@@ -943,7 +1016,8 @@ void free_sentinel_header_list(sentinel_header_t** old_list) {
 }
 
 /**
- * get_sentinel_note: Creates and returns a note struct on the given note-string
+ * get_sentinel_note: Creates and returns a note struct on the given note-string. The type is
+ *                    taken from Subsurface
  **/
 
 bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
@@ -1012,6 +1086,7 @@ bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
 
 bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_item) {
     int cmd_size = (int) log10(dive_num) + 2;
+    bool res = true;
 
     if (dive_num == 0)
         cmd_size = 2;
@@ -1021,13 +1096,52 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
 
     sprintf(command, "D%d", dive_num);
     dprint(true, "Send download command: '%s'", command);
-    bool res = send_sentinel_command(fd, &command, sizeof(command));
+    res = send_sentinel_command(fd, &command, sizeof(command));
     if (!res) return(false);
 
     if (!read_sentinel_response(fd, &buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START),
                                 SENTINEL_PROFILE_END, sizeof(SENTINEL_PROFILE_END))) {
         eprint("%s", "Failed to read dive data from Sentinel");
-        return(false);
+        res = false;
+    } else {
+        // Let's first separate the header from the profile
+        dprint(true, "%s", "Cutting the downloaded dive data into header and profile");
+        char** header_and_profile = str_cut(&buffer, "Profile\r\n");
+
+        // Let's repopulate the header, then we will also get the gas and tissues too
+        free_sentinel_header(*header_item);
+        *header_item = alloc_sentinel_header();
+        **header_item = DEFAULT_HEADER;
+
+        if (!parse_sentinel_header(header_item, &header_and_profile[0])) {
+            eprint("%s", "Failed to re-parse header");
+            res = false;
+        } else {
+            print_sentinel_header(*header_item);
+            // Next we split the loglines
+            dprint(true, "%s", "Cutting the profile into lines");
+            char** log_lines = str_cut(&header_and_profile[1], "\r\n");
+
+            int i = 0;
+
+            // TODO: We know how many log lines there should be, from the Mem header line,
+            //       this should be verified
+            while (log_lines[i] != NULL) {
+                dprint(true, "Parsing log line: %d", i);
+                (*header_item)->log = resize_sentinel_log_list((*header_item)->log, i + 1);
+                (*header_item)->log[i] = alloc_sentinel_dive_log_line();
+                if (!parse_sentinel_log_line((*header_item)->record_interval, (*header_item)->log[i], log_lines[i])) {
+                    eprint("Unable to parse log line: %s", log_lines[i]);
+                }
+
+                i++;
+            }
+
+            free_string_array(log_lines);
+
+        }
+
+        free_string_array(header_and_profile);
     }
 
     free(buffer);
@@ -1053,6 +1167,15 @@ char** str_cut(char** orig_string, const char* delim) {
         /* TODO: Should this actually return an array with each char is separated? */
         return(NULL);
     }
+
+    char* orig_str = restring(*orig_string, strlen(*orig_string));
+    char* delim_str = restring(delim, strlen(delim));
+
+    dprint(true, "Original string: %s", orig_str);
+    dprint(true, "Original delim: %s", delim_str);
+
+    free(orig_str);
+    free(delim_str);
 
     char** str_array  = NULL; /* We store the splits here */
     int arr_idx = 0; /* Our index counter for str_array */
@@ -1102,6 +1225,7 @@ char** str_cut(char** orig_string, const char* delim) {
         arr_idx++;
     }
 
+    dprint(true, "Cut into %d pieces", arr_idx);
     return(str_array);
 }
 

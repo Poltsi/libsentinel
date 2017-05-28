@@ -45,21 +45,21 @@ download -d <device> -f <num> -h -l -n <num> -t <num> -v
 
 In order to do development on the library, you most probably want to use the emulator.
 
-The emulator is a perl-script and is located in the mockup/sentinel_serial_emulator directory. There is a README file with more details on how to set up the emulator.
+The emulator is a perl-script and is located in the mockup/sentinel_serial_emulator directory. There is a README file with more details on how to set up the emulator. If you follow the instructions, you should be able to connect to the emulator by using /tmp/sent1 as the device. Note that the program will give an error about not setting the RTS, this can be disregarded when using the the emulator.
 
 Once you have the binary compiled, socat and emulator running, you can either manually contact the emulator with the command:
 
 ```
-usr/local/bin/download -d /dev/pts/<pts id> -l
+usr/local/bin/download -d /tmp/sent1 -l
 ```
 
 Alternatively you can run the binary under valgrind with the Makefile target valgrind giving it the parameter PORT like so:
 
 ```
-make valgrind PORT=/dev/pts/<pts id>
+make valgrind PORT=/tmp/sent1
 ```
 
-Currently only the header list command (-l) is fully functional. The dive download is a stump and under development. You can use the -f, -t or -n to indicate the start/end, or what specific dive you want to download.
+Currently only the header list command (-l) is fully functional. The dive download is a stump and under development. You can use the -f, -t or -n to indicate the start/end, or what specific dive you want to download. You will get the raw dive data as output.
 
 ## Commands and responses
 

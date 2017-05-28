@@ -15,19 +15,19 @@ The emulator has been tested on Fedora 23/24/25, as well as Ubuntu 16.10 and 17.
 Start socat with the following command:
 
 ```
-socat -d -d -d pty,b9600,echo=1,raw,csize=3,ispeed=9600,ospeed=9600,user=<your username> \
-               pty,b9600,echo=1,raw,csize=3,ispeed=9600,ospeed=9600,user=<your username>
+socat -d -d -d pty,b9600,rawer,cs8,parenb=0,cstopb=0,ispeed=9600,ospeed=9600,link=/tmp/sent0,user=<username> \
+               pty,b9600,rawer,cs8,parenb=0,cstopb=0,ispeed=9600,ospeed=9600,link=/tmp/sent1,user=<username>
 ```
 
-Note that you need to replace the username in the command above
+Note that you need to replace the username in the command above to your username.
 
-Observe which pts's it connects to, and after that you can fire up the emulator in another terminal with the command:
+After that you can fire up the emulator in another terminal with the command:
 
 ```
-./sentinel_serial_emulator.pl /dev/pts/<pts id>
+./sentinel_serial_emulator.pl /tmp/sent0
 ```
 
-Note that if the emulator starts to complain about 'Read unknown command: P' continuously then you need to restart the emulator, switching the pts to the other one.
+Note that if the emulator starts to complain about 'Read unknown command: P' continuously then you need to restart the emulator, switching the device to the other one (/tmp/sent1).
 
 ## How does it work
 

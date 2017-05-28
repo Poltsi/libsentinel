@@ -279,7 +279,7 @@ sub printToDevice
                 last;
             }
         }
-        sleep( 0.6 );
+        usleep( 300 );
         $offset++;
     }
 

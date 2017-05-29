@@ -1127,10 +1127,11 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
 
             // TODO: We know how many log lines there should be, from the Mem header line,
             //       this should be verified
-            while (log_lines[i] != NULL) {
+            while (log_lines[i] != NULL && strncmp(log_lines[i], "End", 3) != 0) {
                 dprint(true, "Parsing log line: %d", i);
                 (*header_item)->log = resize_sentinel_log_list((*header_item)->log, i + 1);
                 (*header_item)->log[i] = alloc_sentinel_dive_log_line();
+
                 if (!parse_sentinel_log_line((*header_item)->record_interval, (*header_item)->log[i], log_lines[i])) {
                     eprint("Unable to parse log line: %s", log_lines[i]);
                 }

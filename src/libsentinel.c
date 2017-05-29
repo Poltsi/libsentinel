@@ -52,33 +52,20 @@ int connect_sentinel(char* device) {
         return(0);
     }
 
-    options.c_iflag &= ~(IGNBRK | BRKINT | ISTRIP | INLCR | IGNCR | ICRNL); // Check
-    options.c_oflag &= ~(OPOST); // Check
-    options.c_lflag &= ~(ICANON | ECHO | ISIG | IEXTEN); // Check
-    options.c_cflag |= (CLOCAL | CREAD); // Check
-    options.c_cc[VMIN] = 1; // Check
-    options.c_cc[VTIME] = 0; // Check
+    options.c_iflag &= ~(IGNBRK | BRKINT | ISTRIP | INLCR | IGNCR | ICRNL);
+    options.c_oflag &= ~(OPOST);
+    options.c_lflag &= ~(ICANON | ECHO | ISIG | IEXTEN);
+    options.c_cflag |= (CLOCAL | CREAD);
+    options.c_cc[VMIN] = 1;
+    options.c_cc[VTIME] = 0;
 
-    options.c_cflag &= ~CSIZE; /* Mask the character size bits */ // Check
-    // options.c_cflag |= CS8;    /* Select 8 data bits */ 
-
-    // Set parity - No Parity (8N1)
-
-    // options.c_cflag &= ~PARENB;
-    options.c_cflag &= ~(PARENB | PARODD); // Check
-    options.c_iflag &= ~(IGNPAR | PARMRK | INPCK); // Check
-    options.c_iflag |= IGNPAR; // Check
-    // options.c_cflag &= ~CSTOPB;
-    options.c_cflag &= ~CSTOPB; // Check
-    options.c_cflag &= ~CSIZE; // Check
-    options.c_cflag |= CS8; // Check
-    // options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-
-    // Disable Software Flow control
-    // options.c_iflag &= ~(IXON | IXOFF | IXANY);
-
-    // Chose raw (not processed) output
-    // options.c_oflag &= ~(OPOST);
+    options.c_cflag &= ~CSIZE; /* Mask the character size bits */
+    options.c_cflag &= ~(PARENB | PARODD);
+    options.c_iflag &= ~(IGNPAR | PARMRK | INPCK);
+    options.c_iflag |= IGNPAR;
+    options.c_cflag &= ~CSTOPB;
+    options.c_cflag &= ~CSIZE;
+    options.c_cflag |= CS8;
 
     if (tcsetattr( fd, TCSANOW, &options ) == -1)
         eprint("%s", "Unable to set tcsetattr");

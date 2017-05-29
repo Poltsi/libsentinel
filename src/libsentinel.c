@@ -680,50 +680,64 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
         return(false);
     }
 
-    int field_idx = 0;
+    // Print all the fields we splitted
+    int i = 0;
+    while (log_field[i] != NULL) {
+        dprint(true, "Whole log_field[%d]: %s", i, log_field[i]);
+        i++;
+    }
+
+    // Then again, with the shifted value
+    i = 0;
+    while (log_field[i] != NULL) {
+        dprint(true, "Cut log_field[%d]: %s", i, log_field[i] + 1);
+        i++;
+    }
+
+    i = 0;
 
     /* We presume that the first 15 fields are always in the same order
      * and represent the same thing */
-    line->time_idx             = atoi(log_field[0] + 1);
-    line->time_s               = line->time_idx * interval;
-    line->time_string          = seconds_to_hms(line->time_s);
+    if (log_field[i] != NULL) line->time_idx             = atoi(log_field[i] + 1);
+    if (log_field[i] != NULL) line->time_s               = line->time_idx * interval;
+    if (log_field[i] != NULL) line->time_string          = seconds_to_hms(line->time_s);
+    i++;
     /* This is the pressure measurement, not the actual depth, according to Martin Stanton,
      * who also provided the correct formula to convert to depth */
-    line->depth                = (atoi(log_field[1]) * 6) / 64.0;
-    line->po2                  = atoi(log_field[3]) / 100.0;
-    line->temperature          = atoi(log_field[5] + 1);
-    line->scrubber_left        = atoi(log_field[6] + 1) / 10.0;
-    line->primary_battery_V    = atoi(log_field[7] + 1) / 100.0;
-    line->secondary_battery_V  = atoi(log_field[8] + 1) / 100.0;
-    line->diluent_pressure     = atoi(log_field[9] + 1);
-    line->o2_pressure          = atoi(log_field[10] + 1);
-    line->cell_o2[0]           = atoi(log_field[11] + 1) / 100.0;
-    line->cell_o2[1]           = atoi(log_field[12] + 1) / 100.0;
-    line->cell_o2[2]           = atoi(log_field[13] + 1) / 100.0;
-    line->setpoint             = atoi(log_field[14] + 1) / 100.0;
-    line->ceiling              = atoi(log_field[15] + 1);
+    if (log_field[i] != NULL) line->depth                = (atoi(log_field[i]) * 6) / 64.0;
+    i += 2;
+    if (log_field[i] != NULL) line->po2                  = atoi(log_field[i]) / 100.0;
+    i += 2;
+    if (log_field[i] != NULL) line->temperature          = atoi(log_field[i++] + 1);
+    if (log_field[i] != NULL) line->scrubber_left        = atoi(log_field[i++] + 1) / 10.0;
+    if (log_field[i] != NULL) line->primary_battery_V    = atoi(log_field[i++] + 1) / 100.0;
+    if (log_field[i] != NULL) line->secondary_battery_V  = atoi(log_field[i++] + 1) / 100.0;
+    if (log_field[i] != NULL) line->diluent_pressure     = atoi(log_field[i++] + 1);
+    if (log_field[i] != NULL) line->o2_pressure          = atoi(log_field[i++] + 1);
+    if (log_field[i] != NULL) line->cell_o2[0]           = atoi(log_field[i++] + 1) / 100.0;
+    if (log_field[i] != NULL) line->cell_o2[1]           = atoi(log_field[i++] + 1) / 100.0;
+    if (log_field[i] != NULL) line->cell_o2[2]           = atoi(log_field[i++] + 1) / 100.0;
+    if (log_field[i] != NULL) line->setpoint             = atoi(log_field[i++] + 1) / 100.0;
+    if (log_field[i] != NULL) line->ceiling              = atoi(log_field[i++] + 1);
     /* Now if the following field does not start with a S, then we have a note */
-    field_idx = 16;
     int note_idx = 0;
 
-    while (log_field[field_idx] != NULL && strncmp(log_field[field_idx], "S", 1) != 0) {
-        get_sentinel_note(log_field[field_idx], &(line)->note[note_idx]);
+    // There may be events recorded here
+    while (log_field[i] != NULL && strncmp(log_field[i], "S", 1) != 0) {
+        get_sentinel_note(log_field[i], &(line)->note[note_idx]);
         note_idx++;
-        field_idx++;
+        i++;
     }
 
-    // Only if we have these fields
-    if (log_field[field_idx] != NULL) {
-        line->tempstick_value[0]  = atoi(log_field[field_idx++] + 1) / 10.0;
-        line->tempstick_value[1]  = atoi(log_field[field_idx++] + 1) / 10.0;
-        line->tempstick_value[2]  = atoi(log_field[field_idx++] + 1) / 10.0;
-        line->tempstick_value[3]  = atoi(log_field[field_idx++] + 1) / 10.0;
-        line->tempstick_value[4]  = atoi(log_field[field_idx++] + 1) / 10.0;
-        line->tempstick_value[5]  = atoi(log_field[field_idx++] + 1) / 10.0;
-        line->tempstick_value[6]  = atoi(log_field[field_idx++] + 1) / 10.0;
-        line->tempstick_value[7]  = atoi(log_field[field_idx++] + 1) / 10.0;
-        line->co2                 = atoi(log_field[field_idx + 2] + 1);
+    int j = 0;
+    // Do we have all the temp-stick fields?
+    while (log_field[i] != NULL && j < 8) {
+        line->tempstick_value[j]  = atoi(log_field[i] + 1) / 10.0;
+        i++;
+        j++;
     }
+
+    if (log_field[i] != NULL) line->co2                 = atoi(log_field[i + 2] + 1);
 
     free_string_array(log_field);
 

@@ -35,6 +35,9 @@ my @diveData;
 @{ $diveData[ 0 ] } = &readDiveData( '1.txt' );
 @{ $diveData[ 1 ] } = &readDiveData( '2.txt' );
 @{ $diveData[ 2 ] } = &readDiveData( '3.txt' );
+@{ $diveData[ 3 ] } = &readDiveData( '4.txt' );
+@{ $diveData[ 4 ] } = &readDiveData( '5.txt' );
+@{ $diveData[ 5 ] } = &readDiveData( '6.txt' );
 
 $| = 1;
 
@@ -155,6 +158,7 @@ exit( 0 );
 sub readDiveData
 {
     my $fileName = shift;
+    print( "Loading to array file: " . $fileName . "\n" );
     open my $handle, '<', $fileName;
     $/ = "\r\n";
     chomp( my @lines = <$handle> );

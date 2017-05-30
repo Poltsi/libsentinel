@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
         // Next download each dive data
         if (res && (header_list != NULL)) {
             int i = from_dive;
-
+            dprint(verbose, "Fetching dives from %d to %d", from_dive, to_dive);
             dprint(verbose, "%s", "######################################################################");
             while (header_list[i] != NULL && i <= to_dive) {
                 dprint(verbose, "Downloading dive number: %d", i);

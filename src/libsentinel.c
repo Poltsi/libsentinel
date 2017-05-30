@@ -26,7 +26,6 @@
  **/
 
 int connect_sentinel(char* device) {
-    dprint(true, "%s", "Called");
     int fd = open_sentinel_device(device);
 
     if (fd == 0) {
@@ -69,8 +68,6 @@ int connect_sentinel(char* device) {
 
     if (tcsetattr( fd, TCSANOW, &options ) == -1)
         eprint("%s", "Unable to set tcsetattr");
-    else
-        dprint(true, "%s", "tcsetattr succeed");
 
     fcntl(fd, F_SETFL, FNDELAY);
 
@@ -88,7 +85,6 @@ int connect_sentinel(char* device) {
  **/
 
 int open_sentinel_device(char* device) {
-    dprint(true, "%s", "Called");
     int fd; /* File descriptor for the port */
 
     fd = open(device, O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -161,7 +157,6 @@ bool is_sentinel_idle(int fd, const int tries) {
  **/
 
 bool send_sentinel_command(int fd, const void* command, size_t size) {
-    dprint(true, "%s", "Called");
     size_t nbytes = 0;
     char* buf = calloc(size + 1, sizeof(char));
     strncpy(buf, command, size);
@@ -188,8 +183,6 @@ bool send_sentinel_command(int fd, const void* command, size_t size) {
  **/
 
 bool read_sentinel_response(int fd, char** buffer, const char start[], int start_len, const char end[], int end_len) {
-    dprint(true, "%s", "Called");
-
     char slide_start[start_len];
     memset(slide_start, 0, start_len);
 
@@ -198,26 +191,19 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
 
     char buf[1] ={0};
 
-    // We use these only for printout
-    char* start_str = restring(start, start_len);
     char* end_str = restring(end, end_len);
-
-    dprint(true, "Start string (%d): %s", start_len, start_str);
-    dprint(true, "End string (%d): %s", end_len, end_str);
 
     int i = 0;
     int n = 0;
     // Wait to receive the start packet for 20 cycles or as long as we get the wait byte
     while (( n == 0) &&
            (i < 20)) {
-        dprint(true, "Waiting (%d) to get data from device buffer", i);
         // TODO: Should we really read start_len worth of data here? What if the read data
         //       is a partial beginning of start-matcher?
         n = read(fd, slide_start, start_len);
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
 
         if (strncmp("PPP", slide_start, 3) == 0) {
-            dprint(true, "%s", "Receiving wait bytes");
             i++;
         }
     }
@@ -233,12 +219,9 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
         }
 
         slide_start[j] = buf[0];
-        dprint(true, "%s", "Flushing");
 
         sentinel_sleep(SENTINEL_LOOP_SLEEP_MS);
     }
-
-    dprint(true, "%s", "=================================================================");
 
     // TODO: Make sure the buffer is not already initialized
     // Initialize the buffer so that it fits at least the end string
@@ -259,7 +242,6 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
 
         if (n < 0) {
             sentinel_sleep(50);
-            dprint(true, "%s", "Sleeping");
             continue;
         }
 
@@ -284,11 +266,7 @@ bool read_sentinel_response(int fd, char** buffer, const char start[], int start
     }
 
     dprint(true, "Read bytes: %d", i);
-    dprint(true, "%s", "#################################################################");
-    dprint(true, "Buffer:\n%s", *buffer);
-    dprint(true, "%s", "#################################################################");
 
-    free(start_str);
     free(end_str);
 
     if (buffer == NULL) {
@@ -316,7 +294,6 @@ bool disconnect_sentinel(int fd) {
  **/
 
 bool download_sentinel_header(int fd, char** buffer) {
-    dprint(true, "%s", "Called");
     send_sentinel_command(fd, SENTINEL_LIST_CMD, sizeof(SENTINEL_LIST_CMD));
     if (!read_sentinel_response(fd, buffer, SENTINEL_HEADER_START, sizeof(SENTINEL_HEADER_START),
                                 SENTINEL_PROFILE_END, sizeof(SENTINEL_PROFILE_END))) {
@@ -338,7 +315,6 @@ bool download_sentinel_header(int fd, char** buffer) {
  **/
 
 bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
-    dprint(true, "%s", "Called");
     char** h_lines = str_cut(buffer, "\r\n"); /* Cut it by lines */
 
     if (h_lines == NULL) {
@@ -578,7 +554,6 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
         }
         if (strncmp(h_lines[line_idx], "Dcellhealth ", 12) == 0) {
             char* tmp_ptr = h_lines[line_idx] + 12;
-            dprint(true, "Looks like we found the health data for cell: %s", tmp_ptr);
             char** fields = str_cut(&tmp_ptr, ", ");
 
             if (fields == NULL) {
@@ -609,8 +584,6 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             (*header_struct)->gas[gas_idx].max_depth = atoi(fields[3]);
             (*header_struct)->gas[gas_idx].enabled = atoi(fields[4]);
             free_string_array(fields);
-            dprint(true, "Found the gas setting for gas# %d: %d/%d", gas_idx,
-                   (*header_struct)->gas[gas_idx].o2, (*header_struct)->gas[gas_idx].he );
             line_idx++;
             continue;
         }
@@ -628,8 +601,6 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
             (*header_struct)->tissue[tissue_idx].t1 = atoi(fields[1]);
             (*header_struct)->tissue[tissue_idx].t2 = atoi(fields[2]);
             free_string_array(fields);
-            dprint(true, "Found the tissue value for tissue_idx# %d: %d-%d", tissue_idx,
-                   (*header_struct)->tissue[tissue_idx].t1, (*header_struct)->tissue[tissue_idx].t2 );
             line_idx++;
             continue;
         }
@@ -658,8 +629,6 @@ bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer) {
  **/
 
 bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr) {
-    int buffer_size = strlen(linestr);
-    dprint(true, "Line length: %d", buffer_size);
     char** log_field = str_cut(&linestr, ","); /* Cut it by comma */
 
     if (log_field == NULL) {
@@ -670,14 +639,12 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
     // Print all the fields we splitted
     int i = 0;
     while (log_field[i] != NULL) {
-        dprint(true, "Whole log_field[%d]: %s", i, log_field[i]);
         i++;
     }
 
     // Then again, with the shifted value
     i = 0;
     while (log_field[i] != NULL) {
-        dprint(true, "Cut log_field[%d]: %s", i, log_field[i] + 1);
         i++;
     }
 
@@ -762,19 +729,14 @@ sentinel_note_t* alloc_sentinel_note(void) {
 sentinel_note_t** resize_sentinel_note_list(sentinel_note_t** old_list, int list_size) {
     // Let's first get a count of the old list
     int i = 0;
-    int old_size = 0;
 
     if (old_list != NULL) {
         while (old_list[i] != NULL) {
             i++;
         }
-
-        old_size = i + 1;
     }
 
     int new_size = list_size + 1;
-    dprint(true, "Size of the old note list: %d", old_size);
-    dprint(true, "Size of the new note list: %d", new_size);
 
     sentinel_note_t** new_list = realloc(old_list, new_size * sizeof(sentinel_note_t*));
 
@@ -801,7 +763,6 @@ sentinel_note_t** resize_sentinel_note_list(sentinel_note_t** old_list, int list
  **/
 
 bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
-    dprint(true, "%s", "Called");
     /* Create and minimal allocation of the buffer */
     char* buffer;
     if (!download_sentinel_header(fd, &buffer)) {
@@ -839,7 +800,6 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
             return(false);
         }
 
-        dprint(true, "Parsing header: %d", header_idx);
         if (!parse_sentinel_header(&(*header_list)[header_idx], &head_array[header_idx])) {
             eprint("%s", "Failed parse the Sentinel header");
             return(false);
@@ -1002,18 +962,13 @@ sentinel_dive_log_line_t** resize_sentinel_log_list(sentinel_dive_log_line_t** o
     // Let's first get a count of the old list
     int i = 0;
 
-    int old_size = 0;
     if (old_list != NULL) {
         while (old_list[i] != NULL) {
             i++;
         }
-
-        old_size = i + 1;
     }
 
     int new_size = list_size + 1;
-    dprint(true, "Size of the old log list: %d", old_size);
-    dprint(true, "Size of the new log list: %d", new_size);
 
     sentinel_dive_log_line_t** new_list = realloc(old_list, new_size * sizeof(sentinel_dive_log_line_t*));
 
@@ -1076,18 +1031,13 @@ sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_list, in
     // Let's first get a count of the old list
     int i = 0;
 
-    int old_size = 0;
     if (old_list != NULL) {
         while (old_list[i] != NULL) {
             i++;
         }
-
-        old_size = i + 1;
     }
 
     int new_size = list_size + 1;
-    dprint(true, "Size of the old_list: %d", old_size);
-    dprint(true, "Size of the new_list: %d", new_size);
 
     sentinel_header_t** new_list = realloc(old_list, new_size * sizeof(sentinel_header_t*));
 
@@ -1199,7 +1149,6 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
     char* buffer;
 
     sprintf(command, "D%d", dive_num);
-    dprint(true, "Send download command: '%s'", command);
     res = send_sentinel_command(fd, &command, sizeof(command));
     if (!res) return(false);
 
@@ -1209,7 +1158,6 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
         res = false;
     } else {
         // Let's first separate the header from the profile
-        dprint(true, "%s", "Cutting the downloaded dive data into header and profile");
         char** header_and_profile = str_cut(&buffer, "Profile\r\n");
 
         // Let's repopulate the header, then we will also get the gas and tissues too
@@ -1221,17 +1169,13 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
             eprint("%s", "Failed to re-parse header");
             res = false;
         } else {
-            print_sentinel_header(*header_item);
             // Next we split the loglines
-            dprint(true, "%s", "Cutting the profile into lines");
             char** log_lines = str_cut(&header_and_profile[1], "\r\n");
-
             int i = 0;
 
             // TODO: We know how many log lines there should be, from the Mem header line,
             //       this should be verified
             while (log_lines[i] != NULL && strncmp(log_lines[i], "End", 3) != 0) {
-                dprint(true, "Parsing log line: %d", i);
                 (*header_item)->log = resize_sentinel_log_list((*header_item)->log, i + 1);
                 (*header_item)->log[i] = alloc_sentinel_dive_log_line();
 
@@ -1272,15 +1216,6 @@ char** str_cut(char** orig_string, const char* delim) {
         /* TODO: Should this actually return an array with each char is separated? */
         return(NULL);
     }
-
-    char* orig_str = restring(*orig_string, strlen(*orig_string));
-    char* delim_str = restring(delim, strlen(delim));
-
-    dprint(true, "Original string: %s", orig_str);
-    dprint(true, "Original delim: %s", delim_str);
-
-    free(orig_str);
-    free(delim_str);
 
     char** str_array  = NULL; /* We store the splits here */
     int arr_idx = 0; /* Our index counter for str_array */
@@ -1330,7 +1265,6 @@ char** str_cut(char** orig_string, const char* delim) {
         arr_idx++;
     }
 
-    dprint(true, "Cut into %d pieces", arr_idx);
     return(str_array);
 }
 

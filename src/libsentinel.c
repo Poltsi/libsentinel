@@ -683,6 +683,9 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
 
     i = 0;
 
+    // Default values for the line
+    *line = DEFAULT_LOG_LINE;
+
     /* We presume that the first 15 fields are always in the same order
      * and represent the same thing */
     if (log_field[i] != NULL) line->time_idx             = atoi(log_field[i] + 1);
@@ -710,8 +713,15 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
     int note_idx = 0;
 
     // There may be events recorded here
+    // Allocate an empty array
     while (log_field[i] != NULL && strncmp(log_field[i], "S", 1) != 0) {
-        add_sentinel_note(line->note, log_field[i]);
+        line->note = resize_sentinel_note_list(line->note, note_idx + 1);
+        line->note[note_idx] = alloc_sentinel_note();
+
+        if (!get_sentinel_note(line->note[note_idx], log_field[i])) {
+            eprint("Unable to add note: %s", log_field[i]);
+        }
+
         note_idx++;
         i++;
     }
@@ -732,25 +742,17 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
 }
 
 /**
- * add_sentinel_note: Adds a new note struct to the given list of notes 
+ *alloc_sentinel_note: Returns an allocated memory structure for note struct.
+ *                     This will not allocate the member values 
  **/
 
-bool add_sentinel_note(sentinel_note_t** note_list, char* note_text) {
-    // How many notes are there already?
-    int i = 0;
+sentinel_note_t* alloc_sentinel_note(void) {
+    sentinel_note_t *tmp = malloc(sizeof(sentinel_note_t));
 
-    while (note_list[i] != NULL) {
-        i++;
-    }
+    if (tmp == NULL)
+        return(NULL);
 
-    note_list = resize_sentinel_note_list(note_list, i);
-    if (note_list == NULL) return(false);
-    if (get_sentinel_note(note_text, note_list[i])) {
-        eprint("Failed to get the note struct for note text: '%s'", note_text);
-        return(false);
-    }
-
-    return(true);
+    return(tmp);
 }
 
 /**
@@ -782,6 +784,7 @@ sentinel_note_t** resize_sentinel_note_list(sentinel_note_t** old_list, int list
 
         while (old_list[j] != NULL) {
             free(old_list[j]);
+            j++;
         }
 
         free(old_list);
@@ -887,12 +890,17 @@ void free_sentinel_header(sentinel_header_t* header) {
  *
  **/
 void free_sentinel_note_list(sentinel_note_t** note) {
-    int i = 0;
+    if (note != NULL) {
+        int i = 0;
 
-    while (note[i] != NULL) {
-        if (note[i]->note != NULL) free(note[i]->note);
-        if (note[i]->description != NULL) free(note[i]->description);
-        i++;
+        while (note[i] != NULL) {
+            if (note[i]->note != NULL) free(note[i]->note);
+            if (note[i]->description != NULL) free(note[i]->description);
+            free(note[i]);
+            i++;
+        }
+
+        free(note);
     }
 }
 
@@ -1015,6 +1023,7 @@ sentinel_dive_log_line_t** resize_sentinel_log_list(sentinel_dive_log_line_t** o
 
         while (old_list[j] != NULL) {
             free(old_list[j]);
+            j++;
         }
 
         free(old_list);
@@ -1115,58 +1124,58 @@ void free_sentinel_header_list(sentinel_header_t** old_list) {
  *                    taken from Subsurface
  **/
 
-bool get_sentinel_note(char* note_str, sentinel_note_t* note) {
+bool get_sentinel_note(sentinel_note_t* note, char* note_str) {
     note->note = malloc((strlen(note_str) + 1) * sizeof(char));
     strncpy(note->note, note_str, strlen(note_str));
 
     if (strcmp(note_str, "ASCENT")) {
         note->type  = 3;
-        note->description = "Ascent";
+        note->description = strdup("Ascent");
     } else if (strcmp(note_str, "ASCENT FAST")) {
         note->type  = 3;
-        note->description = "High ascent rate";
+        note->description = strdup("High ascent rate");
     } else if (strcmp(note_str, "CELLmV ERROR")) {
         note->type  = 20;
-        note->description = "Cell voltage error";
+        note->description = strdup("Cell voltage error");
     } else if (strcmp(note_str, "DECO ALARM")) {
         note->type  = 1;
-        note->description = "Deco alarm";
+        note->description = strdup("Deco alarm");
     } else if (strcmp(note_str, "FILTERREDDIFF")) {
         note->type  = 20;
-        note->description = "Filter reading difference";
+        note->description = strdup("Filter reading difference");
     } else if (strcmp(note_str, "HPRATE HI")) {
         note->type  = 20;
-        note->description = "High pressure rate";
+        note->description = strdup("High pressure rate");
     } else if (strcmp(note_str, "PPO2 <HIGH")) {
         note->type  = 20;
-        note->description = "PO2 very high";
+        note->description = strdup("PO2 very high");
     } else if (strcmp(note_str, "PPO2 HIGH")) {
         note->type  = 20;
-        note->description = "PO2 high";
+        note->description = strdup("PO2 high");
     } else if (strcmp(note_str, "PPO2 LOW")) {
         note->type  = 20;
-        note->description = "PO2 low";
+        note->description = strdup("PO2 low");
     } else if (strcmp(note_str, "PPO2 mHIGH")) {
         note->type  = 20;
-        note->description = "PO2 medium high";
+        note->description = strdup("PO2 medium high");
     } else if (strcmp(note_str, "PPO2 mLOW")) {
         note->type  = 20;
-        note->description = "PO2 medium low";
+        note->description = strdup("PO2 medium low");
     } else if (strcmp(note_str, "PPO2 OFF")) {
         note->type  = 20;
-        note->description = "No pO2-reading";
+        note->description = strdup("No pO2-reading");
     } else if (strcmp(note_str, "PPO2 SPINC")) {
         note->type  = 20;
-        note->description = "SP change";
+        note->description = strdup("SP change");
     } else if (strcmp(note_str, "PPO2 VHIGH")) {
         note->type  = 20;
-        note->description = "PO2 very high";
+        note->description = strdup("PO2 very high");
     } else if (strcmp(note_str, "PREDIVE ABORT")) {
         note->type  = 20;
-        note->description = "No predive check done";
+        note->description = strdup("No predive check done");
     } else if (strcmp(note_str, "VALVE")) {
         note->type  = 20;
-        note->description = "Valve issue detected";
+        note->description = strdup("Valve issue detected");
     } else {
         eprint("Unknown note: '%s'", note_str);
     }

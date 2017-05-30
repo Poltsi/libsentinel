@@ -68,7 +68,7 @@ typedef struct sentinel_gas {
     int n2; /* Nitrogen percentage */
     int he; /* Helium percentage */
     int o2; /* O2 percentage, we calculate this from the previous two */
-    long max_depth; /* Configured max depth for gas, originally given in decimeter */
+    double max_depth; /* Configured max depth for gas, originally given in decimeter */
     int enabled; /* Whether the gas is enabled */
 } sentinel_gas_t;
 
@@ -87,21 +87,41 @@ typedef struct sentinel_dive_log_line {
     int time_idx; /* Time index */
     int time_s; /* Seconds since start of dive, equal to time_idx * record_interval */
     char* time_string; /* Beautified time string in the format hh:mm:ss */
-    long depth; /* Converted to meter from decimeter */
-    long po2; /* Converted from hectobar */
+    double depth; /* Converted to meter from decimeter */
+    double po2; /* Converted from hectobar */
     int temperature;
-    long scrubber_left; /* Converted from promille to percentage. This is broken in the newer version */
-    long primary_battery_V; /* Converted from hectovolt, value for primary handset */
-    long secondary_battery_V; /* Converted from hectovolt, value for secondary handset */
+    double scrubber_left; /* Converted from promille to percentage. This is broken in the newer version */
+    double primary_battery_V; /* Converted from hectovolt, value for primary handset */
+    double secondary_battery_V; /* Converted from hectovolt, value for secondary handset */
     int diluent_pressure; /* Diluent cylinder pressure */
     int o2_pressure; /* Oxygen cylinder pressure */
-    long cell_o2[3]; /* pO2-reading for each cell */
-    long setpoint; /* Converted from hectobar to bar */
+    double cell_o2[3]; /* pO2-reading for each cell */
+    double setpoint; /* Converted from hectobar to bar */
     int ceiling; /* Decompression ceiling, m*/
     sentinel_note_t** note; /* Info, warning and alerts, can be max 3 per log line, last in array is always null */
-    long tempstick_value[8]; /* Converted from decicelsius, there are 8 sensors along the tempstick */
-    long co2; /* Converted from millibar to bar */
+    double tempstick_value[8]; /* Converted from decicelsius, there are 8 sensors along the tempstick */
+    double co2; /* Converted from millibar to bar */
 } sentinel_dive_log_line_t;
+
+const sentinel_dive_log_line_t DEFAULT_LOG_LINE = {
+    0,
+    0,
+    NULL,
+    0.0,
+    0.0,
+    0,
+    0.0,
+    0.0,
+    0.0,
+    0,
+    0,
+    {0.0,0.0,0.0},
+    0.0,
+    0,
+    NULL,
+    {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0},
+    0.0
+};
 
 typedef struct sentinel_dive_header {
     char* version;
@@ -134,7 +154,6 @@ typedef struct sentinel_dive_header {
     sentinel_tissue_t tissue[16]; /* Not yet clear what these are */
     sentinel_dive_log_line_t** log; /* Allocate this based on the log_lines */
 } sentinel_header_t;
-
 
 const sentinel_header_t DEFAULT_HEADER = {
     NULL,
@@ -178,8 +197,8 @@ extern bool disconnect_sentinel(int fd);
 extern bool download_sentinel_header(int fd, char** buffer);
 extern bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer);
 extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr);
-extern bool add_sentinel_note(sentinel_note_t** note_list, char* note_text);
 extern sentinel_note_t** resize_sentinel_note_list(sentinel_note_t** old_list, int list_size);
+extern sentinel_note_t* alloc_sentinel_note(void);
 extern bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list);
 extern sentinel_header_t* alloc_sentinel_header(void);
 extern void free_sentinel_header(sentinel_header_t* header);
@@ -192,7 +211,7 @@ extern sentinel_dive_log_line_t* alloc_sentinel_dive_log_line(void);
 extern void free_sentinel_dive_log_list(sentinel_dive_log_line_t** old_list);
 extern sentinel_header_t** resize_sentinel_header_list(sentinel_header_t** old_list, int list_size);
 extern void free_sentinel_header_list(sentinel_header_t** h_list);
-extern bool get_sentinel_note(char* note_str, sentinel_note_t* note);
+extern bool get_sentinel_note(sentinel_note_t* note, char* note_str);
 extern bool download_sentinel_dive(int device, int dive_num, sentinel_header_t** header_item);
 
 /* Internal functions */

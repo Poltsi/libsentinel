@@ -711,7 +711,7 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
 
     // There may be events recorded here
     while (log_field[i] != NULL && strncmp(log_field[i], "S", 1) != 0) {
-        get_sentinel_note(log_field[i], &(line)->note[note_idx]);
+        add_sentinel_note(line->note, log_field[i]);
         note_idx++;
         i++;
     }
@@ -729,6 +729,68 @@ bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char*
     free_string_array(log_field);
 
     return(true);
+}
+
+/**
+ * add_sentinel_note: Adds a new note struct to the given list of notes 
+ **/
+
+bool add_sentinel_note(sentinel_note_t** note_list, char* note_text) {
+    // How many notes are there already?
+    int i = 0;
+
+    while (note_list[i] != NULL) {
+        i++;
+    }
+
+    note_list = resize_sentinel_note_list(note_list, i);
+    if (note_list == NULL) return(false);
+    if (get_sentinel_note(note_text, note_list[i])) {
+        eprint("Failed to get the note struct for note text: '%s'", note_text);
+        return(false);
+    }
+
+    return(true);
+}
+
+/**
+ * resize_sentinel_note_list: Resizes and allocates memory for the new list of notes
+ **/
+
+sentinel_note_t** resize_sentinel_note_list(sentinel_note_t** old_list, int list_size) {
+    // Let's first get a count of the old list
+    int i = 0;
+    int old_size = 0;
+
+    if (old_list != NULL) {
+        while (old_list[i] != NULL) {
+            i++;
+        }
+
+        old_size = i + 1;
+    }
+
+    int new_size = list_size + 1;
+    dprint(true, "Size of the old note list: %d", old_size);
+    dprint(true, "Size of the new note list: %d", new_size);
+
+    sentinel_note_t** new_list = realloc(old_list, new_size * sizeof(sentinel_note_t*));
+
+    if (new_list == NULL) {
+        eprint("%s", "Failed to reallocate note list");
+        int j = 0;
+
+        while (old_list[j] != NULL) {
+            free(old_list[j]);
+        }
+
+        free(old_list);
+        return(NULL);
+    }
+
+    new_list[list_size] = NULL;
+
+    return(new_list);
 }
 
 /**
@@ -815,19 +877,51 @@ void free_sentinel_header(sentinel_header_t* header) {
         if (header->start_time    != NULL) free(header->start_time);
         if (header->end_time      != NULL) free(header->end_time);
         if (header->length_time   != NULL) free(header->length_time);
-        if (header->log           != NULL) free(header->log);
+        if (header->log           != NULL) free_sentinel_log_list(header->log);
         free(header);
     }
 }
 
 /**
- * free_sentinel_log: Frees the memory of a given header struct. This will free
+ *
+ *
+ **/
+void free_sentinel_note_list(sentinel_note_t** note) {
+    int i = 0;
+
+    while (note[i] != NULL) {
+        if (note[i]->note != NULL) free(note[i]->note);
+        if (note[i]->description != NULL) free(note[i]->description);
+        i++;
+    }
+}
+
+/**
+ * free_sentinel_log: Frees the memory of a given log struct. This will free
  *                      all the dynamically assigned member values too
  **/
 
 void free_sentinel_log(sentinel_dive_log_line_t* log) {
     if (log != NULL) {
         if (log->time_string != NULL) free(log->time_string);
+        free_sentinel_note_list(log->note);
+        free(log);
+    }
+}
+
+/**
+ * free_sentinel_log_list: Frees the memory of a given log list
+ **/
+
+void free_sentinel_log_list(sentinel_dive_log_line_t** log) {
+    if (log != NULL) {
+        int i = 0;
+
+        while (log[i] != NULL) {
+            free_sentinel_log(log[i]);
+            i++;
+        }
+
         free(log);
     }
 }

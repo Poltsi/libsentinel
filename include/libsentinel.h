@@ -98,7 +98,7 @@ typedef struct sentinel_dive_log_line {
     long cell_o2[3]; /* pO2-reading for each cell */
     long setpoint; /* Converted from hectobar to bar */
     int ceiling; /* Decompression ceiling, m*/
-    sentinel_note_t note[4]; /* Info, warning and alerts, can be max 3 per log line, last in array is always null */
+    sentinel_note_t** note; /* Info, warning and alerts, can be max 3 per log line, last in array is always null */
     long tempstick_value[8]; /* Converted from decicelsius, there are 8 sensors along the tempstick */
     long co2; /* Converted from millibar to bar */
 } sentinel_dive_log_line_t;
@@ -178,10 +178,13 @@ extern bool disconnect_sentinel(int fd);
 extern bool download_sentinel_header(int fd, char** buffer);
 extern bool parse_sentinel_header(sentinel_header_t** header_struct, char** buffer);
 extern bool parse_sentinel_log_line(int interval, sentinel_dive_log_line_t* line, char* linestr);
+extern bool add_sentinel_note(sentinel_note_t** note_list, char* note_text);
+extern sentinel_note_t** resize_sentinel_note_list(sentinel_note_t** old_list, int list_size);
 extern bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list);
 extern sentinel_header_t* alloc_sentinel_header(void);
 extern void free_sentinel_header(sentinel_header_t* header);
 extern void free_sentinel_log(sentinel_dive_log_line_t* log);
+extern void free_sentinel_log_list(sentinel_dive_log_line_t** log);
 extern void print_sentinel_header(sentinel_header_t* header);
 extern void short_print_sentinel_header(int number, sentinel_header_t* header);
 extern sentinel_dive_log_line_t** resize_sentinel_log_list(sentinel_dive_log_line_t** old_list, int list_size);

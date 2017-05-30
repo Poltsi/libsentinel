@@ -47,7 +47,7 @@ valgrinddl: clean $(CMDTOOL)
 	valgrind $(VALGRIND_PARAMS) $(BINDIR)/$(CMDTOOL) -d $(PORT) -f 1 -t 2 -v 2>&1 | tee out-`date "+%Y.%m.%d-%H:%M:%S"`.log
 
 valgrindreal: clean $(CMDTOOL)
-	valgrind $(VALGRIND_PARAMS) --max-stackframe=4147483632  $(BINDIR)/$(CMDTOOL) -d $(PORT) -f 5 -t 6 -v 2>&1 | tee real-out-`date "+%Y.%m.%d-%H:%M:%S"`.log
+	valgrind $(VALGRIND_PARAMS) --max-stackframe=4147483632  $(BINDIR)/$(CMDTOOL) -d $(PORT) -f 4 -t 5 -v 2>&1 | tee real-out-`date "+%Y.%m.%d-%H:%M:%S"`.log
 
 clean:
 	rm -f $(LIBOBJECTS) $(BINOBJECTS) $(BINDIR)/$(CMDTOOL) $(LIBDIR)/$(LIBFILE)

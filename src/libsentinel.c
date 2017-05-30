@@ -969,7 +969,7 @@ void print_sentinel_header(sentinel_header_t* header) {
         }
 
         for (i = 0; i < 10; i++) {
-            printf("gas[%2d]: N2: %2d He: %2d O2: %2d %3.2ld %d\n", i,
+            printf("gas[%2d]: N2: %2d He: %2d O2: %2d %3.2lf %d\n", i,
                    header->gas[i].n2, header->gas[i].he, header->gas[i].o2,
                    header->gas[i].max_depth, header->gas[i].enabled );
         }

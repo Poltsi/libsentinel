@@ -955,6 +955,41 @@ void short_print_sentinel_header(int number, sentinel_header_t* header) {
 }
 
 /**
+ * print_sentinel_log_line: Print some fields of the given log line
+ **/
+
+void print_sentinel_log_line(int number, sentinel_dive_log_line_t* line) {
+    if (line != NULL) {
+        printf("%04d ", number);
+        printf("%s ", line->time_string);
+        printf("%3.1lf ",line->depth);
+        printf("%2d⁰C ", line->temperature);
+        printf("%1.2lf ", line->po2);
+        printf("%3d ", line->o2_pressure);
+        printf("%3d ", line->diluent_pressure);
+        printf("%1.2lf\n", line->setpoint);
+    }
+}
+
+/**
+ * full_print_sentinel_dive: Print both header as well as choice parts of each log line
+ **/
+
+void full_print_sentinel_dive(sentinel_header_t* header) {
+    if (header != NULL) {
+        print_sentinel_header(header);
+
+        if (header->log != NULL) {
+            int i = 0;
+
+            while (header->log[i] != NULL)  {
+                print_sentinel_log_line(i, header->log[i]);
+                i++;
+            }
+        }
+    }
+}
+/**
  * resize_sentinel_log_list: Manages the resizing of an sentinel_dive_log_line_t array
  **/
 

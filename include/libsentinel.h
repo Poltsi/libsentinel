@@ -206,6 +206,8 @@ extern void free_sentinel_log(sentinel_dive_log_line_t* log);
 extern void free_sentinel_log_list(sentinel_dive_log_line_t** log);
 extern void print_sentinel_header(sentinel_header_t* header);
 extern void short_print_sentinel_header(int number, sentinel_header_t* header);
+extern void print_sentinel_log_line(int number, sentinel_dive_log_line_t* line);
+extern void full_print_sentinel_dive(sentinel_header_t* header);
 extern sentinel_dive_log_line_t** resize_sentinel_log_list(sentinel_dive_log_line_t** old_list, int list_size);
 extern sentinel_dive_log_line_t* alloc_sentinel_dive_log_line(void);
 extern void free_sentinel_dive_log_list(sentinel_dive_log_line_t** old_list);

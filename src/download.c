@@ -174,6 +174,7 @@ int main(int argc, char **argv) {
             while (header_list[i] != NULL && i <= to_dive) {
                 dprint(verbose, "Downloading dive number: %d", i);
                 download_sentinel_dive(fd, i, &header_list[i]);
+                full_print_sentinel_dive(header_list[i]);
                 i++;
             }
 

@@ -967,7 +967,17 @@ void print_sentinel_log_line(int number, sentinel_dive_log_line_t* line) {
         printf("%1.2lf ", line->po2);
         printf("%3d ", line->o2_pressure);
         printf("%3d ", line->diluent_pressure);
-        printf("%1.2lf\n", line->setpoint);
+        printf("%1.2lf", line->setpoint);
+
+        if (line->note != NULL) {
+            int i = 0;
+            while (line->note[i] != NULL) {
+                if (line->note[i]->note != NULL) printf(" '%s'", line->note[i]->note);
+                i++;
+            }
+        }
+
+        printf("\n");
     }
 }
 
@@ -1110,7 +1120,8 @@ void free_sentinel_header_list(sentinel_header_t** old_list) {
  **/
 
 bool get_sentinel_note(sentinel_note_t* note, char* note_str) {
-    note->note = malloc((strlen(note_str) + 1) * sizeof(char));
+    note->note = calloc(1, sizeof(char));
+    note->note = resize_string(note->note, (strlen(note_str) + 1));
     strncpy(note->note, note_str, strlen(note_str));
 
     if (strcmp(note_str, "ASCENT")) {

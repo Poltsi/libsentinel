@@ -1,15 +1,15 @@
 # Libsentinel
 
-The goal with this library is to provide an API with 4 main functions to access the (older) Sentinel rebreather previously manufactured by VR Technologies and currently (up until the RedHead) by [VMS](http://www.vmsrebreathers.com/):
+The goal with this library is to provide an API with 2 main functions to access the (older) Sentinel rebreather previously manufactured by VR Technologies and currently (up until the RedHead) by [VMS](http://www.vmsrebreathers.com/):
 
 1. get_sentinel_dive_list which returns the header part of each dive found in the rebreather as a list of header structs with the log-member as null
-2. get_sentinel_dives_all which returns essentially the same list above, with the addition of also having the log member populated as well as gas and tissue data for each dive
-3. get_sentinel_dive returns the header and log part of a particular dive
-4. get_sentinel_dive_number returns the number of dive logs on the rebreather
+2. download_sentinel_dive which fetches the full dive data for the given dive
 
-The last one may be too fuzzy to be used since the rebreather electronics can essentially store only around 10 hours of dive telemetrics, so the accuracy of the returned value is probably not to be trusted.
+With the first one you get the list of dives stored on the rebreather(*) with most of the metadata (such as time, max depth, OTU, CNS etc). With the second you can retrieve all the data of a particular dive.
 
-There are commands to change the rebreather settings, but currently I have no plans on implementing any of these.
+*) Although the rebreather only retains about 10h worth of actual dive data, the data of older dives will most probably be corrupted,
+
+There are also commands to change the rebreather settings, but currently I have no plans on implementing any of these.
 
 ## Development
 
@@ -59,9 +59,11 @@ Alternatively you can run the binary under valgrind with the Makefile target val
 make valgrind PORT=/tmp/sent1
 ```
 
-Currently only the header list command (-l) is fully functional. The dive download is a stump and under development. You can use the -f, -t or -n to indicate the start/end, or what specific dive you want to download. You will get the raw dive data as output.
+Currently you can use the -f, -t or -n to indicate the start/end, or what specific dive you want to download or -l to list the dives on the rebreather.
 
-## Commands and responses
+## Commands and responses over the serial port
+
+These have been eeked out by listening to the communication between the original piece of software (ProLink) and the rebreather.
 
 Hex | Command | Meaning
 ----|---------|--------
@@ -74,7 +76,8 @@ Hex | Command | Meaning
 
 ## TODO
 
-- [ ] lib: Download a given dive data
+- [*] lib: Download the list of dives
+- [*] lib: Download a given dive data
 - [ ] lib: Better verbose-handling
 - [ ] lib: Check function return values
 - [x] exe: Printout of header list

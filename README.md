@@ -78,8 +78,8 @@ Hex | Command | Meaning
 
 ## TODO
 
-- [*] lib: Download the list of dives
-- [*] lib: Download a given dive data
+- [x] lib: Download the list of dives
+- [x] lib: Download a given dive data
 - [ ] lib: Better verbose-handling
 - [ ] lib: Check function return values
 - [x] exe: Printout of header list

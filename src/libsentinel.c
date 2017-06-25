@@ -771,6 +771,9 @@ bool get_sentinel_dive_list(int fd, sentinel_header_t*** header_list) {
         return(false);
     }
 
+    printf("========= List ==========\n");
+    printf("%s", buffer);
+    printf("========= List ==========\n");
     // TODO: This is not working, for some reason SENTINEL_HEADER_START is longer (5) and has 2 newlines
     // char** head_array = str_cut(buffer, SENTINEL_HEADER_START);
     char** head_array = str_cut(&buffer, "d\r\n");
@@ -1193,7 +1196,9 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
 
     char command[cmd_size];
     char* buffer;
-
+    /* TODO: This is not how the dive number is formed. It is actually just the ascii character,
+     *       so eg. first dive is 0x30 (0) and the commad is D0, 12th dive is 0x3C (<) and the
+     *       command is D< */
     sprintf(command, "D%d", dive_num);
     res = send_sentinel_command(fd, &command, sizeof(command));
     if (!res) return(false);
@@ -1203,6 +1208,9 @@ bool download_sentinel_dive(int fd, int dive_num, sentinel_header_t** header_ite
         eprint("%s", "Failed to read dive data from Sentinel");
         res = false;
     } else {
+        printf("========= Dive ==========\n");
+        printf("%s", buffer);
+        printf("========= Dive ==========\n");
         // Let's first separate the header from the profile
         char** header_and_profile = str_cut(&buffer, "Profile\r\n");
 
